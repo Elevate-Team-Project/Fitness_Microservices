@@ -1,5 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using WorkoutService.Shared;
+using WorkoutService.Features.Workouts.GetAllWorkouts.ViewModels;
 
 namespace WorkoutService.Features.Workouts.GetAllWorkouts
 {
@@ -7,11 +9,11 @@ namespace WorkoutService.Features.Workouts.GetAllWorkouts
     {
         public static void MapGetAllWorkoutsEndpoint(this WebApplication app)
         {
-            app.MapGet("/workouts", async ([FromServices] IMediator mediator) =>
+            app.MapGet("/api/v1/workouts", async ([FromServices] IMediator mediator, [AsParameters] GetAllWorkoutsQuery query) =>
             {
-                var query = new GetAllWorkoutsQuery();
                 var result = await mediator.Send(query);
-                return Results.Ok(result);
+                var response = new ApiResponse<PaginatedWorkoutsVm>(result, "Workouts fetched successfully");
+                return Results.Ok(response);
             });
         }
     }
