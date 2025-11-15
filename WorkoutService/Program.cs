@@ -57,6 +57,7 @@ public class Program
             });
 
             // Register Unit of Work
+            builder.Services.AddScoped<IWorkoutRepository, WorkoutRepository>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Register Generic Repositories for all classes inheriting from BaseEntity
