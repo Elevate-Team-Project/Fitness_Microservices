@@ -55,7 +55,7 @@ public class Program
                     options.EnableDetailedErrors(true);
                 }
             });
-
+            // End DBContext setup
             // Register Unit of Work
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
