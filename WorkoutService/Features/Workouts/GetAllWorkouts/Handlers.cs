@@ -34,7 +34,7 @@ namespace WorkoutService.Features.Workouts.GetAllWorkouts
 
             if (request.Duration.HasValue)
             {
-                query = query.Where(w => w.Duration == request.Duration.Value);
+                query = query.Where(w => w.DurationInMinutes == request.Duration.Value);
             }
 
             if (!string.IsNullOrEmpty(request.Search))
