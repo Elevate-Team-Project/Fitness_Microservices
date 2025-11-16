@@ -1,6 +1,8 @@
 using Mapster;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using WorkoutService.Domain.Entities;
 using WorkoutService.Domain.Interfaces;
 using WorkoutService.Features.Shared;
@@ -14,16 +16,28 @@ namespace WorkoutService.Features.Workouts.StartWorkoutSession
         private readonly IBaseRepository<Workout> _workoutRepository;
         private readonly IBaseRepository<WorkoutSession> _workoutSessionRepository;
         private readonly ApplicationDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public StartWorkoutSessionCommandHandler(IBaseRepository<Workout> workoutRepository, IBaseRepository<WorkoutSession> workoutSessionRepository, ApplicationDbContext context)
+        public StartWorkoutSessionCommandHandler(
+            IBaseRepository<Workout> workoutRepository,
+            IBaseRepository<WorkoutSession> workoutSessionRepository,
+            ApplicationDbContext context,
+            IHttpContextAccessor httpContextAccessor)
         {
             _workoutRepository = workoutRepository;
             _workoutSessionRepository = workoutSessionRepository;
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<RequestResponse<WorkoutSessionViewModel>> Handle(StartWorkoutSessionCommand request, CancellationToken cancellationToken)
         {
+            var userId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return RequestResponse<WorkoutSessionViewModel>.Fail("User not authenticated");
+            }
+
             var workout = await _workoutRepository.GetAll()
                 .Include(w => w.Exercises)
                 .FirstOrDefaultAsync(w => w.Id == request.WorkoutId, cancellationToken);
@@ -35,7 +49,7 @@ namespace WorkoutService.Features.Workouts.StartWorkoutSession
 
             var session = new WorkoutSession
             {
-                UserId = Guid.NewGuid(), // Mocking user ID for now
+                UserId = Guid.Parse(userId),
                 WorkoutId = workout.Id,
                 Status = "InProgress",
                 StartedAt = DateTime.UtcNow,
