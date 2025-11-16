@@ -1,4 +1,8 @@
-namespace WorkoutService.Features.Workouts.StartWorkoutSession
+namespace WorkoutService.Features.Workouts.StartWorkoutSession.Dtos
 {
-    public record StartWorkoutSessionDto(int WorkoutId, DateTime StartTime);
+    public class StartWorkoutSessionDto
+    {
+        public string Difficulty { get; set; }
+        public int PlannedDuration { get; set; }
+    }
 }

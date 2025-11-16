@@ -4,12 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using WorkoutService.Domain.Entities;
 using WorkoutService.Domain.Interfaces;
 using WorkoutService.Features.Shared;
-using WorkoutService.Features.Workouts.CreateWorkout.ViewModels;
 using WorkoutService.Features.Workouts.GetAllWorkouts.ViewModels;
 
 namespace WorkoutService.Features.Workouts.GetAllWorkouts
 {
-    public class GetAllWorkoutsHandler : IRequestHandler<GetAllWorkoutsQuery, RequestResponse<PaginatedWorkoutsVm>>
+    public class GetAllWorkoutsHandler : IRequestHandler<GetAllWorkoutsQuery, RequestResponse<PaginatedResult<WorkoutViewModel>>>
     {
         private readonly IBaseRepository<Workout> _workoutRepository;
 
@@ -18,7 +17,7 @@ namespace WorkoutService.Features.Workouts.GetAllWorkouts
             _workoutRepository = workoutRepository;
         }
 
-        public async Task<RequestResponse<PaginatedWorkoutsVm>> Handle(GetAllWorkoutsQuery request, CancellationToken cancellationToken)
+        public async Task<RequestResponse<PaginatedResult<WorkoutViewModel>>> Handle(GetAllWorkoutsQuery request, CancellationToken cancellationToken)
         {
             var query = _workoutRepository.GetAll();
 
@@ -49,10 +48,10 @@ namespace WorkoutService.Features.Workouts.GetAllWorkouts
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
 
-            var workoutVms = workouts.Adapt<List<WorkoutVm>>();
-            var paginatedResult = new PaginatedWorkoutsVm(workoutVms, totalCount, request.Page, request.PageSize);
+            var workoutVms = workouts.Adapt<List<WorkoutViewModel>>();
+            var paginatedResult = new PaginatedResult<WorkoutViewModel>(workoutVms, totalCount, request.Page, request.PageSize);
 
-            return RequestResponse<PaginatedWorkoutsVm>.Success(paginatedResult, "Workouts fetched successfully");
+            return RequestResponse<PaginatedResult<WorkoutViewModel>>.Success(paginatedResult, "Workouts fetched successfully");
         }
     }
 }

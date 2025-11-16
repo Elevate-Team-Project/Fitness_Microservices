@@ -1,32 +1,63 @@
+using Mapster;
 using MediatR;
-using WorkoutService.Features.Workouts.StartWorkoutSession.ViewModels;
-using WorkoutService.Domain.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using WorkoutService.Domain.Entities;
+using WorkoutService.Domain.Interfaces;
+using WorkoutService.Features.Shared;
+using WorkoutService.Features.Workouts.StartWorkoutSession.ViewModels;
+using WorkoutService.Infrastructure.Data;
 
 namespace WorkoutService.Features.Workouts.StartWorkoutSession
 {
-    public class StartWorkoutSessionHandler : IRequestHandler<StartWorkoutSessionCommand, WorkoutSessionVm>
+    public class StartWorkoutSessionCommandHandler : IRequestHandler<StartWorkoutSessionCommand, RequestResponse<WorkoutSessionViewModel>>
     {
-        private readonly IUnitOfWork _unitOfWork;
-        //private readonly IBaseRepository<WorkoutSession> _workoutSessionRepository;
-        public StartWorkoutSessionHandler(IUnitOfWork unitOfWork)
+        private readonly IBaseRepository<Workout> _workoutRepository;
+        private readonly IBaseRepository<WorkoutSession> _workoutSessionRepository;
+        private readonly ApplicationDbContext _context;
+
+        public StartWorkoutSessionCommandHandler(IBaseRepository<Workout> workoutRepository, IBaseRepository<WorkoutSession> workoutSessionRepository, ApplicationDbContext context)
         {
-            _unitOfWork = unitOfWork;
+            _workoutRepository = workoutRepository;
+            _workoutSessionRepository = workoutSessionRepository;
+            _context = context;
         }
 
-        public async Task<WorkoutSessionVm> Handle(StartWorkoutSessionCommand request, CancellationToken cancellationToken)
+        public async Task<RequestResponse<WorkoutSessionViewModel>> Handle(StartWorkoutSessionCommand request, CancellationToken cancellationToken)
         {
-            //var session = new WorkoutSession
-            //{
-            //    WorkoutId = request.Dto.WorkoutId,
-            //    StartTime = request.Dto.StartTime,
-            //    EndTime = null // Session has not ended yet
-            //};
+            var workout = await _workoutRepository.GetAll()
+                .Include(w => w.WorkoutExercises)
+                .FirstOrDefaultAsync(w => w.Id == request.WorkoutId, cancellationToken);
 
-            //await _unitOfWork.WorkoutSessions.AddAsync(session);
-            //await _unitOfWork.CompleteAsync();
+            if (workout == null)
+            {
+                return RequestResponse<WorkoutSessionViewModel>.Fail("Workout not found");
+            }
 
-            return new WorkoutSessionVm(1, request.Dto.WorkoutId, request.Dto.StartTime, null);
+            var session = new WorkoutSession
+            {
+                UserId = Guid.NewGuid(), // Mocking user ID for now
+                WorkoutId = workout.Id,
+                Status = "InProgress",
+                StartedAt = DateTime.UtcNow,
+                PlannedDurationInMinutes = request.Dto.PlannedDuration,
+                Difficulty = request.Dto.Difficulty
+            };
+
+            var sessionExercises = workout.WorkoutExercises.Select(e => new WorkoutSessionExercise
+            {
+                ExerciseId = e.Id,
+                Status = "Pending",
+                Order = e.Order
+            }).ToList();
+
+            session.SessionExercises = sessionExercises;
+
+            await _workoutSessionRepository.AddAsync(session);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            var sessionVm = session.Adapt<WorkoutSessionViewModel>();
+
+            return RequestResponse<WorkoutSessionViewModel>.Success(sessionVm, "Workout session started");
         }
     }
 }

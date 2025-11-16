@@ -1,13 +1,13 @@
-﻿namespace WorkoutService.Features.Shared
+namespace WorkoutService.Features.Shared
 {
     public record EndpointResponse<T>(
-            T? Data,
-            string Message = "",
-            bool IsSuccess = true,
-            int StatusCode = 200,
-            List<string>? Errors = null,
-            DateTime? Timestamp = null
-        )
+           T? Data,
+           string Message = "",
+           bool IsSuccess = true,
+           int StatusCode = 200,
+           List<string>? Errors = null,
+           DateTime? Timestamp = null
+       )
     {
         public List<string> Errors { get; init; } = Errors ?? new();
         public DateTime? Timestamp { get; init; } = Timestamp ?? DateTime.UtcNow;
