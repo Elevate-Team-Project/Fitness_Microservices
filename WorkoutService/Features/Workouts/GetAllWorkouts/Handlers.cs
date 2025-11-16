@@ -1,23 +1,26 @@
 using Mapster;
 using MediatR;
-using WorkoutService.Features.Workouts.GetAllWorkouts.ViewModels;
-using WorkoutService.Domain.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using WorkoutService.Domain.Entities;
-using WorkoutService.Shared;
+using WorkoutService.Domain.Interfaces;
+using WorkoutService.Features.Shared;
+using WorkoutService.Features.Workouts.CreateWorkout.ViewModels;
+using WorkoutService.Features.Workouts.GetAllWorkouts.ViewModels;
 
 namespace WorkoutService.Features.Workouts.GetAllWorkouts
 {
-    public class GetAllWorkoutsHandler : IRequestHandler<GetAllWorkoutsQuery, PaginatedWorkoutsVm>
+    public class GetAllWorkoutsHandler : IRequestHandler<GetAllWorkoutsQuery, RequestResponse<PaginatedWorkoutsVm>>
     {
-        private readonly IUnitOfWork _unitOfWork;
-        public GetAllWorkoutsHandler(IUnitOfWork unitOfWork)
+        private readonly IBaseRepository<Workout> _workoutRepository;
+
+        public GetAllWorkoutsHandler(IBaseRepository<Workout> workoutRepository)
         {
-            _unitOfWork = unitOfWork;
+            _workoutRepository = workoutRepository;
         }
 
-        public async Task<PaginatedWorkoutsVm> Handle(GetAllWorkoutsQuery request, CancellationToken cancellationToken)
+        public async Task<RequestResponse<PaginatedWorkoutsVm>> Handle(GetAllWorkoutsQuery request, CancellationToken cancellationToken)
         {
-            var query = _unitOfWork.Workouts.GetAll();
+            var query = _workoutRepository.GetAll();
 
             if (!string.IsNullOrEmpty(request.Category))
             {
@@ -31,7 +34,7 @@ namespace WorkoutService.Features.Workouts.GetAllWorkouts
 
             if (request.Duration.HasValue)
             {
-                query = query.Where(w => w.Duration <= request.Duration.Value);
+                query = query.Where(w => w.Duration == request.Duration.Value);
             }
 
             if (!string.IsNullOrEmpty(request.Search))
@@ -39,20 +42,17 @@ namespace WorkoutService.Features.Workouts.GetAllWorkouts
                 query = query.Where(w => w.Name.Contains(request.Search) || w.Description.Contains(request.Search));
             }
 
-            var pagedResult = PagedResult<Workout>.Create(query, request.Page, request.PageSize);
+            var totalCount = await query.CountAsync(cancellationToken);
 
-            var workoutVms = pagedResult.Items.Adapt<List<WorkoutResponseViewModel>>();
+            var workouts = await query
+                .Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToListAsync(cancellationToken);
 
-            return new PaginatedWorkoutsVm
-            {
-                Items = workoutVms,
-                Page = pagedResult.Page,
-                PageSize = pagedResult.PageSize,
-                TotalCount = pagedResult.TotalCount,
-                TotalPages = pagedResult.TotalPages,
-                HasPrevious = pagedResult.HasPrevious,
-                HasNext = pagedResult.HasNext
-            };
+            var workoutVms = workouts.Adapt<List<WorkoutVm>>();
+            var paginatedResult = new PaginatedWorkoutsVm(workoutVms, totalCount, request.Page, request.PageSize);
+
+            return RequestResponse<PaginatedWorkoutsVm>.Success(paginatedResult, "Workouts fetched successfully");
         }
     }
 }

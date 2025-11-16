@@ -1,11 +1,9 @@
-using Microsoft.EntityFrameworkCore.Storage;
-using WorkoutService.Domain.Entities;
+﻿using Microsoft.EntityFrameworkCore.Storage;
 
 namespace WorkoutService.Domain.Interfaces
 {
     public interface IUnitOfWork : IDisposable
     {
-        IWorkoutRepository Workouts { get; }
         Task<int> CompleteAsync();
         int Complete();
         Task<int> SaveAsync();

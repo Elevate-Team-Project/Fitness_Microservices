@@ -1,19 +1,17 @@
-using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore.Storage;
 using WorkoutService.Domain.Interfaces;
 using WorkoutService.Infrastructure.Data;
-using WorkoutService.Infrastructure.Repositories;
 
 namespace WorkoutService.Infrastructure.UnitOfWork
 {
     public class UnitOfWork : IUnitOfWork
     {
-        private readonly WorkoutContext _context;
-        public IWorkoutRepository Workouts { get; }
+        private readonly ApplicationDbContext _context;
 
-        public UnitOfWork(WorkoutContext context, IWorkoutRepository workoutRepository)
+        public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
-            Workouts = workoutRepository;
+
         }
 
         // Transaction methods

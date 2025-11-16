@@ -55,9 +55,8 @@ public class Program
                     options.EnableDetailedErrors(true);
                 }
             });
-
+            // End DBContext setup
             // Register Unit of Work
-            builder.Services.AddScoped<IWorkoutRepository, WorkoutRepository>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Register Generic Repositories for all classes inheriting from BaseEntity
@@ -84,7 +83,7 @@ public class Program
             var typeAdapterConfig = TypeAdapterConfig.GlobalSettings;
             typeAdapterConfig.Scan(Assembly.GetExecutingAssembly());
             builder.Services.AddSingleton(typeAdapterConfig);
-            builder.Services.AddScoped<IMapper, ServiceMapper>(); // Added back
+            //builder.Services.AddScoped<IMapper, ServiceMapper>(); // Added back
 
             // Add Authentication (validates JWT tokens)
             builder.Services.AddAuthentication(options =>
