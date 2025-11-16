@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using WorkoutService.Features.Shared;
+using WorkoutService.Features.Workouts.GetAllWorkouts.ViewModels;
 
 namespace WorkoutService.Features.Workouts.GetAllWorkouts
 {
@@ -22,16 +23,16 @@ namespace WorkoutService.Features.Workouts.GetAllWorkouts
 
                 if (!result.IsSuccess)
                 {
-                    return EndpointResponse<object>.ErrorResponse(
+                    return Results.BadRequest(EndpointResponse<object>.ErrorResponse(
                         message: "Failed to fetch workouts",
                         errors: new List<string> { result.Message }
-                    );
+                    ));
                 }
 
-                return EndpointResponse<object>.SuccessResponse(
+                return Results.Ok(EndpointResponse<PaginatedResult<WorkoutViewModel>>.SuccessResponse(
                     data: result.Data,
                     message: "Workouts fetched successfully"
-                );
+                ));
             });
         }
     }

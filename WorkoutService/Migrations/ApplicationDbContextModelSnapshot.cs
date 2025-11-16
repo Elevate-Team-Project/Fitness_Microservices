@@ -241,101 +241,6 @@ namespace WorkoutService.Migrations
                     b.ToTable("WorkoutPlans");
                 });
 
-            modelBuilder.Entity("WorkoutService.Domain.Entities.WorkoutSession", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Difficulty")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("EndedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("PlannedDurationInMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("StartedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("WorkoutId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("WorkoutId");
-
-                    b.ToTable("WorkoutSessions");
-                });
-
-            modelBuilder.Entity("WorkoutService.Domain.Entities.WorkoutSessionExercise", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("ExerciseId")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("WorkoutSessionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("WorkoutSessionId1")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExerciseId");
-
-                    b.HasIndex("WorkoutSessionId1");
-
-                    b.ToTable("WorkoutSessionExercises");
-                });
-
             modelBuilder.Entity("WorkoutService.Domain.Entities.Workout", b =>
                 {
                     b.HasOne("WorkoutService.Domain.Entities.WorkoutPlan", "WorkoutPlan")
@@ -366,36 +271,6 @@ namespace WorkoutService.Migrations
                     b.Navigation("Workout");
                 });
 
-            modelBuilder.Entity("WorkoutService.Domain.Entities.WorkoutSession", b =>
-                {
-                    b.HasOne("WorkoutService.Domain.Entities.Workout", "Workout")
-                        .WithMany()
-                        .HasForeignKey("WorkoutId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Workout");
-                });
-
-            modelBuilder.Entity("WorkoutService.Domain.Entities.WorkoutSessionExercise", b =>
-                {
-                    b.HasOne("WorkoutService.Domain.Entities.Exercise", "Exercise")
-                        .WithMany()
-                        .HasForeignKey("ExerciseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("WorkoutService.Domain.Entities.WorkoutSession", "WorkoutSession")
-                        .WithMany("SessionExercises")
-                        .HasForeignKey("WorkoutSessionId1")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Exercise");
-
-                    b.Navigation("WorkoutSession");
-                });
-
             modelBuilder.Entity("WorkoutService.Domain.Entities.Exercise", b =>
                 {
                     b.Navigation("WorkoutExercises");
@@ -409,11 +284,6 @@ namespace WorkoutService.Migrations
             modelBuilder.Entity("WorkoutService.Domain.Entities.WorkoutPlan", b =>
                 {
                     b.Navigation("Workouts");
-                });
-
-            modelBuilder.Entity("WorkoutService.Domain.Entities.WorkoutSession", b =>
-                {
-                    b.Navigation("SessionExercises");
                 });
 #pragma warning restore 612, 618
         }

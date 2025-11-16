@@ -10,27 +10,22 @@ namespace WorkoutService.Features.Workouts.GetWorkoutDetails
         public static void MapGetWorkoutDetailsEndpoint(this WebApplication app)
         {
             app.MapGet("/api/v1/workouts/{id}", async (
-                [FromRoute] int id,
-                [FromServices] IMediator mediator) =>
+                [FromServices] IMediator mediator,
+                [FromRoute] int id) =>
             {
                 var query = new GetWorkoutDetailsQuery(id);
                 var result = await mediator.Send(query);
 
                 if (!result.IsSuccess)
                 {
-                    var response = EndpointResponse<object>.NotFoundResponse(result.Message);
-                    return Results.Json(response, statusCode: response.StatusCode);
+                    return Results.NotFound(EndpointResponse<object>.NotFoundResponse(result.Message));
                 }
 
-                var success = EndpointResponse<WorkoutDetailsViewModel>.SuccessResponse(
-                    result.Data!,
-                    result.Message
-                );
-
-                return Results.Json(success, statusCode: success.StatusCode);
+                return Results.Ok(EndpointResponse<WorkoutDetailsViewModel>.SuccessResponse(
+                    data: result.Data,
+                    message: "Workout details fetched successfully"
+                ));
             });
-
-
         }
     }
 }

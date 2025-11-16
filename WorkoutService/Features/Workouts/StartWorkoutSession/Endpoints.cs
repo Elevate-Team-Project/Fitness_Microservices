@@ -20,23 +20,15 @@ namespace WorkoutService.Features.Workouts.StartWorkoutSession
 
                 if (!result.IsSuccess)
                 {
-                    return Results.BadRequest(new EndpointResponse<object>(
-                        null,
-                        result.Message,
-                        false,
-                        400,
-                        new List<string> { result.Message },
-                        DateTime.UtcNow
+                    return Results.BadRequest(EndpointResponse<object>.ErrorResponse(
+                        message: "Failed to start workout session",
+                        errors: new List<string> { result.Message }
                     ));
                 }
 
-                return Results.Ok(new EndpointResponse<WorkoutSessionViewModel>(
-                    result.Data,
-                    result.Message,
-                    true,
-                    200,
-                    null,
-                    DateTime.UtcNow
+                return Results.Ok(EndpointResponse<WorkoutSessionViewModel>.SuccessResponse(
+                    data: result.Data,
+                    message: "Workout session started"
                 ));
             });
         }

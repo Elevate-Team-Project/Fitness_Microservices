@@ -21,30 +21,17 @@ namespace WorkoutService.Features.Workouts.GetWorkoutsByCategory
 
                 if (!result.IsSuccess)
                 {
-                    return Results.BadRequest(
-                        new EndpointResponse<object>(
-                            null,
-                            result.Message,
-                            false,
-                            400,
-                            new List<string> { result.Message },
-                            DateTime.UtcNow
-                        )
-                    );
+                    return Results.BadRequest(EndpointResponse<object>.ErrorResponse(
+                        message: "Failed to fetch category workouts",
+                        errors: new List<string> { result.Message }
+                    ));
                 }
 
-                return Results.Ok(
-                    new EndpointResponse<PaginatedResult<WorkoutViewModel>>(
-                        result.Data,
-                        result.Message,
-                        true,
-                        200,
-                        null,
-                        DateTime.UtcNow
-                    )
-                );
+                return Results.Ok(EndpointResponse<PaginatedResult<WorkoutViewModel>>.SuccessResponse(
+                    data: result.Data,
+                    message: "Category workouts fetched successfully"
+                ));
             });
-
         }
     }
 }
