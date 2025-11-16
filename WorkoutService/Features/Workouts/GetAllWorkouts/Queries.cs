@@ -11,5 +11,5 @@ namespace WorkoutService.Features.Workouts.GetAllWorkouts
         string? Difficulty = null,
         int? Duration = null,
         string? Search = null
-    ) : IRequest<RequestResponse<PaginatedWorkoutsVm>>;
+    ) : IRequest<RequestResponse<PaginatedResult<WorkoutViewModel>>>;
 }

@@ -14,6 +14,8 @@ namespace WorkoutService.Infrastructure.Data
         public DbSet<Exercise> Exercises { get; set; }
         public DbSet<WorkoutPlan> WorkoutPlans { get; set; }
         public DbSet<WorkoutExercise> WorkoutExercises { get; set; }
+        public DbSet<WorkoutSession> WorkoutSessions { get; set; }
+        public DbSet<WorkoutSessionExercise> WorkoutSessionExercises { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -65,6 +67,8 @@ namespace WorkoutService.Infrastructure.Data
             modelBuilder.Entity<Exercise>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<WorkoutPlan>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<WorkoutExercise>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<WorkoutSession>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<WorkoutSessionExercise>().HasQueryFilter(e => !e.IsDeleted);
         }
 
         // Override SaveChanges to handle soft delete and timestamps

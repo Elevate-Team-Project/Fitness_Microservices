@@ -1,38 +1,42 @@
 using Mapster;
 using MediatR;
-using WorkoutService.Features.Workouts.GetAllWorkouts.ViewModels;
-using WorkoutService.Domain.Interfaces;
-using WorkoutService.Features.Workouts.CreateWorkout.ViewModels;
+using Microsoft.EntityFrameworkCore;
 using WorkoutService.Domain.Entities;
+using WorkoutService.Domain.Interfaces;
+using WorkoutService.Features.Shared;
+using WorkoutService.Features.Workouts.GetAllWorkouts.ViewModels;
 
 namespace WorkoutService.Features.Workouts.GetWorkoutsByCategory
 {
-    public class GetWorkoutsByCategoryHandler : IRequestHandler<GetWorkoutsByCategoryQuery, PaginatedWorkoutsVm>
+    public class GetWorkoutsByCategoryHandler : IRequestHandler<GetWorkoutsByCategoryQuery, RequestResponse<PaginatedResult<WorkoutViewModel>>>
     {
-        private readonly IUnitOfWork _unitOfWork;
         private readonly IBaseRepository<Workout> _workoutRepository;
-        public GetWorkoutsByCategoryHandler(IUnitOfWork unitOfWork , IBaseRepository<Workout> workoutRepository)
+
+        public GetWorkoutsByCategoryHandler(IBaseRepository<Workout> workoutRepository)
         {
-            _unitOfWork = unitOfWork;
             _workoutRepository = workoutRepository;
         }
 
-        public async Task<PaginatedWorkoutsVm> Handle(GetWorkoutsByCategoryQuery request, CancellationToken cancellationToken)
+        public async Task<RequestResponse<PaginatedResult<WorkoutViewModel>>> Handle(GetWorkoutsByCategoryQuery request, CancellationToken cancellationToken)
         {
-            var allWorkouts = await _workoutRepository.GetAllAsync();
-            var workoutsByCategory = allWorkouts.Where(w => w.Category.Equals(request.Category, StringComparison.OrdinalIgnoreCase));
+            var query = _workoutRepository.GetAll().Where(w => w.Category == request.CategoryName);
 
-            var workoutVms = workoutsByCategory.Adapt<List<WorkoutVm>>();
+            if (!string.IsNullOrEmpty(request.Difficulty))
+            {
+                query = query.Where(w => w.Difficulty == request.Difficulty);
+            }
 
-            // Pagination logic (basic example)
-            int page =   1;
-            int pageSize = workoutVms.Count;
-            int totalCount = workoutVms.Count;
-            int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            var totalCount = await query.CountAsync(cancellationToken);
 
-            var pagedItems = workoutVms.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            var workouts = await query
+                .Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToListAsync(cancellationToken);
 
-            return new PaginatedWorkoutsVm(pagedItems, page, pageSize, totalCount);
+            var workoutVms = workouts.Adapt<List<WorkoutViewModel>>();
+            var paginatedResult = new PaginatedResult<WorkoutViewModel>(workoutVms, totalCount, request.Page, request.PageSize);
+
+            return RequestResponse<PaginatedResult<WorkoutViewModel>>.Success(paginatedResult, "Category workouts fetched successfully");
         }
     }
 }

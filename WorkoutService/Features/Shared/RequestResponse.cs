@@ -1,10 +1,10 @@
-﻿namespace WorkoutService.Features.Shared
+namespace WorkoutService.Features.Shared
 {
     public record RequestResponse<T>(
-            T? Data,
-            string Message = "",
-            bool IsSuccess = true
-        )
+        T? Data,
+        string Message = "",
+        bool IsSuccess = true
+    )
     {
         public static RequestResponse<T> Success(
             T data,
