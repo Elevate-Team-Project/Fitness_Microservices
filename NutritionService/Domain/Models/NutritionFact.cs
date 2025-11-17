@@ -9,6 +9,7 @@
         public double Fiber { get; set; }
 
         #region Relationships
+        public int MealId { get; set; }
         public Meal Meal { get; set; }
         #endregion
     }
