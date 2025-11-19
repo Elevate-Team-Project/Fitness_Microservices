@@ -8,6 +8,9 @@ namespace NutritionService.Domain.Models
         public MealType mealType { get; set; }
         public int PrepTimeInMinutes { get; set; }
         public string Difficulty { get; set; } = default!;
+        public string Description { get; set; } = default!;
+        public string ImageUrl { get; set; } = default!;
+        public bool IsPremium { get; set; } = false;
 
         #region Relationships
         public int MealPlanId { get; set; }

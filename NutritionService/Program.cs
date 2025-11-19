@@ -1,6 +1,7 @@
-
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using NutritionService.Domain.Interfaces;
+using NutritionService.Features.Meals.GetMealRecommendations;
 using NutritionService.Infrastructure.Data;
 using NutritionService.Infrastructure.Repositorys;
 
@@ -19,6 +20,7 @@ namespace NutritionService
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            builder.Services.AddMediatR(typeof(Program).Assembly);
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             {
@@ -44,22 +46,12 @@ namespace NutritionService
                 "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
             };
 
-            app.MapGet("/weatherforecast", (HttpContext httpContext) =>
-            {
-                var forecast = Enumerable.Range(1, 5).Select(index =>
-                    new WeatherForecast
-                    {
-                        Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                        TemperatureC = Random.Shared.Next(-20, 55),
-                        Summary = summaries[Random.Shared.Next(summaries.Length)]
-                    })
-                    .ToArray();
-                return forecast;
-            })
-            .WithName("GetWeatherForecast")
-            .WithOpenApi();
+
+            app.MapGetMealRecommendationsEndpoint();
+
+         
             #endregion
-            app.Run();
+                app.Run();
         }
     }
 }
