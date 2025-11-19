@@ -7,7 +7,7 @@ namespace WorkoutService.Features.Exercises.GetAllExercises
     {
         public static void MapGetAllExercisesEndpoint(this WebApplication app)
         {
-            app.MapGet("/exercises", async ([FromServices] IMediator mediator) =>
+            app.MapGet("/exercises", async (IMediator mediator) =>
             {
                 var query = new GetAllExercisesQuery();
                 var result = await mediator.Send(query);

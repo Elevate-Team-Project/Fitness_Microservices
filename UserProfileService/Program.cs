@@ -1,4 +1,6 @@
 
+using WorkoutService.Features.Exercises.GetAllExercises;
+
 namespace UserProfileService
 {
     public class Program
@@ -22,6 +24,8 @@ namespace UserProfileService
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+
+            app.MapGetAllExercisesEndpoint();
 
             app.UseHttpsRedirection();
 

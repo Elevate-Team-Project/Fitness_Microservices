@@ -20,7 +20,7 @@ namespace WorkoutService.Features.Exercises.CreateExercise
             // TODO: Add mapping
             var exercise = new Exercise { Name = request.Dto.Name, Description = request.Dto.Description };
             await _exerciseRepository.AddAsync(exercise);
-            await _unitOfWork.CompleteAsync();
+            await _unitOfWork.SaveChangesAsync();
             return new ExerciseVm(exercise.Id, exercise.Name, exercise.Description);
         }
     }
