@@ -1,11 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Linq.Expressions;
 using WorkoutService.Domain.Entities;
 using WorkoutService.Domain.Interfaces;
 using WorkoutService.Infrastructure.Data;
 
-namespace WorkoutService.Infrastructure
+namespace WorkoutService.Migrations
 {
     public class BaseRepository<T> : IBaseRepository<T> where T : BaseEntity
     {
@@ -28,7 +28,7 @@ namespace WorkoutService.Infrastructure
                 query = query.Include(include);
             }
 
-            return await query.FirstOrDefaultAsync(e => Microsoft.EntityFrameworkCore.EF.Property<int>(e, "Id") == id);
+            return await query.FirstOrDefaultAsync(e => EF.Property<int>(e, "Id") == id);
         }
 
         public async Task<IEnumerable<T>> GetAllAsync(params Expression<Func<T, object>>[] includes)

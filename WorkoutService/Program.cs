@@ -12,9 +12,9 @@ using System.Text;
 using WorkoutService.Domain.Entities;
 using WorkoutService.Domain.Interfaces;
 using WorkoutService.Features;
-using WorkoutService.Infrastructure;
 using WorkoutService.Infrastructure.Data;
 using WorkoutService.Infrastructure.UnitOfWork;
+using WorkoutService.Migrations;
 
 // Change Main signature to be async
 public class Program

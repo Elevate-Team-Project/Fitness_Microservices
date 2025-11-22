@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿ using Microsoft.EntityFrameworkCore.Storage;
 using WorkoutService.Domain.Interfaces;
 using WorkoutService.Infrastructure.Data;
 
