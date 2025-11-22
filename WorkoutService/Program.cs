@@ -16,10 +16,9 @@ using WorkoutService.Infrastructure;
 using WorkoutService.Infrastructure.Data;
 using WorkoutService.Infrastructure.UnitOfWork;
 
-// Change Main signature to be async
 public class Program
 {
-    public static async Task Main(string[] args) // Changed to async Task
+    public static async Task Main(string[] args)
     {
         // Serilog setup
         Log.Logger = new LoggerConfiguration()
@@ -45,6 +44,9 @@ public class Program
 
             // 1. Add Services to the container
 
+            // ✅✅✅ Register Memory Cache Here ✅✅✅
+            builder.Services.AddMemoryCache();
+
             // Add DBContext for SQL Server
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             {
@@ -59,7 +61,7 @@ public class Program
             // Register Unit of Work
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            // Register Generic Repositories for all classes inheriting from BaseEntity
+            // Register Generic Repositories
             var entityTypes = Assembly.GetExecutingAssembly()
                 .GetTypes()
                 .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(BaseEntity)))
@@ -72,9 +74,7 @@ public class Program
                 builder.Services.AddScoped(interfaceType, implementationType);
             }
 
-            Log.Information("Registered {Count} generic repositories for entities: {Entities}",
-                entityTypes.Count,
-                string.Join(", ", entityTypes.Select(t => t.Name)));
+            Log.Information("Registered {Count} generic repositories", entityTypes.Count);
 
             // Add MediatR
             builder.Services.AddMediatR(typeof(Program).Assembly);
@@ -84,19 +84,17 @@ public class Program
             typeAdapterConfig.Scan(Assembly.GetExecutingAssembly());
             builder.Services.AddSingleton(typeAdapterConfig);
 
-            // ---------------------------------------------------------
-            // ✅ 1. إضافة خدمة الـ CORS (مهم جداً عشان المتصفح)
-            // ---------------------------------------------------------
+            // Add CORS
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll",
                     b => b.AllowAnyMethod()
                     .AllowAnyHeader()
-                    .SetIsOriginAllowed(origin => true) // allow any origin
+                    .SetIsOriginAllowed(origin => true)
                     .AllowCredentials());
             });
 
-            // Add Authentication (validates JWT tokens)
+            // Add Authentication
             builder.Services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -117,8 +115,6 @@ public class Program
             });
 
             builder.Services.AddAuthorization();
-
-            // Add Swagger/OpenAPI with JWT support
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
@@ -137,11 +133,7 @@ public class Program
                     {
                         new OpenApiSecurityScheme
                         {
-                            Reference = new OpenApiReference
-                            {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "Bearer"
-                            }
+                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
                         },
                         new string[] {}
                     }
@@ -150,37 +142,22 @@ public class Program
 
             var app = builder.Build();
 
-            // 2. Configure the HTTP request pipeline
-
-            // --- Database Migration and Seeding ---
+            // Database Migration
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
                 try
                 {
-                    Log.Information("📊 Starting database migration...");
                     var context = services.GetRequiredService<ApplicationDbContext>();
-
-                    // Apply pending migrations
                     await context.Database.MigrateAsync();
-                    Log.Information("✅ Database migration completed.");
-
-                    // Seed the database
-                    Log.Information("🌱 Starting database seeding...");
                     await DatabaseSeeder.SeedAsync(services);
-                    Log.Information("🌱 Database seeding completed successfully.");
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "❌ An error occurred while migrating or seeding the database.");
-                    if (app.Environment.IsDevelopment())
-                    {
-                        // In Docker, sometimes it's better NOT to throw here to keep the container alive for inspection
-                        throw;
-                    }
+                    Log.Error(ex, "Error during migration/seeding");
+                    if (app.Environment.IsDevelopment()) throw;
                 }
             }
-            // --- END OF NEW BLOCK ---
 
             if (app.Environment.IsDevelopment())
             {
@@ -190,19 +167,12 @@ public class Program
             }
 
             app.UseHttpsRedirection();
-
-            // ---------------------------------------------------------
-            // ✅ 2. تفعيل الـ CORS (لازم يكون قبل الـ Authentication)
-            // ---------------------------------------------------------
             app.UseCors("AllowAll");
-
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // 3. Map all endpoints
             app.MapAllEndpoints();
 
-            // 4. Run the application
             await app.RunAsync();
         }
         catch (Exception ex)
