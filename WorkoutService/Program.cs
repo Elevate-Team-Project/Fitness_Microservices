@@ -15,6 +15,7 @@ using WorkoutService.Features;
 using WorkoutService.Infrastructure;
 using WorkoutService.Infrastructure.Data;
 using WorkoutService.Infrastructure.UnitOfWork;
+using WorkoutService.MiddleWares; // ✅ Don't forget this namespace
 
 public class Program
 {
@@ -44,8 +45,11 @@ public class Program
 
             // 1. Add Services to the container
 
-            // ✅✅✅ Register Memory Cache Here ✅✅✅
+            // ✅ Register Memory Cache
             builder.Services.AddMemoryCache();
+
+            // ✅✅✅ Register Transaction Middleware (Must be Scoped because it uses UnitOfWork)
+            builder.Services.AddScoped<TransactionMiddleware>();
 
             // Add DBContext for SQL Server
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -159,17 +163,30 @@ public class Program
                 }
             }
 
+            // ----------------------------------------------------------
+            // 2. Configure the HTTP request pipeline
+            // ----------------------------------------------------------
+
+            // ✅✅✅ 1. Error Handling Middleware (Place it at the very top)
+            // This ensures it catches errors from Swagger, Auth, Transaction, or Endpoints
+            app.UseMiddleware<ErrorHandlingMiddleware>();
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-                app.UseDeveloperExceptionPage();
+                // app.UseDeveloperExceptionPage(); // Can be commented out if using custom ErrorHandlingMiddleware
             }
 
             app.UseHttpsRedirection();
             app.UseCors("AllowAll");
+
             app.UseAuthentication();
             app.UseAuthorization();
+
+            // ✅✅✅ 2. Transaction Middleware (After Auth, Before Endpoints)
+            // Ensures transactions are only created for authenticated requests (if endpoint requires auth)
+            app.UseMiddleware<TransactionMiddleware>();
 
             app.MapAllEndpoints();
 
