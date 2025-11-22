@@ -22,7 +22,7 @@ namespace FitnessCalculationService
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-
+            //vvv
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
