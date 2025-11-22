@@ -16,10 +16,9 @@ using WorkoutService.Infrastructure.Data;
 using WorkoutService.Infrastructure.UnitOfWork;
 using WorkoutService.Migrations;
 
-// Change Main signature to be async
 public class Program
 {
-    public static async Task Main(string[] args) // Changed to async Task
+    public static async Task Main(string[] args)
     {
         // Serilog setup
         Log.Logger = new LoggerConfiguration()
@@ -45,6 +44,12 @@ public class Program
 
             // 1. Add Services to the container
 
+            // ✅ Register Memory Cache
+            builder.Services.AddMemoryCache();
+
+            // ✅✅✅ Register Transaction Middleware (Must be Scoped because it uses UnitOfWork)
+            builder.Services.AddScoped<TransactionMiddleware>();
+
             // Add DBContext for SQL Server
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             {
@@ -55,11 +60,11 @@ public class Program
                     options.EnableDetailedErrors(true);
                 }
             });
-            // End DBContext setup
+
             // Register Unit of Work
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            // Register Generic Repositories for all classes inheriting from BaseEntity
+            // Register Generic Repositories
             var entityTypes = Assembly.GetExecutingAssembly()
                 .GetTypes()
                 .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(BaseEntity)))
@@ -72,20 +77,27 @@ public class Program
                 builder.Services.AddScoped(interfaceType, implementationType);
             }
 
-            Log.Information("Registered {Count} generic repositories for entities: {Entities}",
-                entityTypes.Count,
-                string.Join(", ", entityTypes.Select(t => t.Name)));
+            Log.Information("Registered {Count} generic repositories", entityTypes.Count);
 
-            // Add MediatR for CQRS (using simpler registration from your file)
+            // Add MediatR
             builder.Services.AddMediatR(typeof(Program).Assembly);
 
-            // Add Mapster for object mapping
+            // Add Mapster
             var typeAdapterConfig = TypeAdapterConfig.GlobalSettings;
             typeAdapterConfig.Scan(Assembly.GetExecutingAssembly());
             builder.Services.AddSingleton(typeAdapterConfig);
-            //builder.Services.AddScoped<IMapper, ServiceMapper>(); // Added back
 
-            // Add Authentication (validates JWT tokens)
+            // Add CORS
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll",
+                    b => b.AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .SetIsOriginAllowed(origin => true)
+                    .AllowCredentials());
+            });
+
+            // Add Authentication
             builder.Services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -106,8 +118,6 @@ public class Program
             });
 
             builder.Services.AddAuthorization();
-
-            // Add Swagger/OpenAPI with JWT support
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
@@ -126,11 +136,7 @@ public class Program
                     {
                         new OpenApiSecurityScheme
                         {
-                            Reference = new OpenApiReference
-                            {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "Bearer"
-                            }
+                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
                         },
                         new string[] {}
                     }
@@ -139,53 +145,51 @@ public class Program
 
             var app = builder.Build();
 
-            // 2. Configure the HTTP request pipeline
-
-            // --- NEW: Database Migration and Seeding (like TechZone) ---
+            // Database Migration
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
                 try
                 {
-                    Log.Information("📊 Starting database migration...");
                     var context = services.GetRequiredService<ApplicationDbContext>();
-
-                    // Apply pending migrations
                     await context.Database.MigrateAsync();
-                    Log.Information("✅ Database migration completed.");
-
-                    // Seed the database
-                    Log.Information("🌱 Starting database seeding...");
-                    await DatabaseSeeder.SeedAsync(services); // Call our new seeder
-                    Log.Information("🌱 Database seeding completed successfully.");
+                    await DatabaseSeeder.SeedAsync(services);
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "❌ An error occurred while migrating or seeding the database.");
-                    if (app.Environment.IsDevelopment())
-                    {
-                        throw; // Throw in dev to see the error
-                    }
+                    Log.Error(ex, "Error during migration/seeding");
+                    if (app.Environment.IsDevelopment()) throw;
                 }
             }
-            // --- END OF NEW BLOCK ---
+
+            // ----------------------------------------------------------
+            // 2. Configure the HTTP request pipeline
+            // ----------------------------------------------------------
+
+            // ✅✅✅ 1. Error Handling Middleware (Place it at the very top)
+            // This ensures it catches errors from Swagger, Auth, Transaction, or Endpoints
+            app.UseMiddleware<ErrorHandlingMiddleware>();
 
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-                app.UseDeveloperExceptionPage();
+                // app.UseDeveloperExceptionPage(); // Can be commented out if using custom ErrorHandlingMiddleware
             }
 
             app.UseHttpsRedirection();
+            app.UseCors("AllowAll");
+
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // 3. Map all endpoints from our Feature folders
-            app.MapAllEndpoints(); // Added back
+            // ✅✅✅ 2. Transaction Middleware (After Auth, Before Endpoints)
+            // Ensures transactions are only created for authenticated requests (if endpoint requires auth)
+            app.UseMiddleware<TransactionMiddleware>();
 
-            // 4. Run the application
-            await app.RunAsync(); // Changed to async
+            app.MapAllEndpoints();
+
+            await app.RunAsync();
         }
         catch (Exception ex)
         {

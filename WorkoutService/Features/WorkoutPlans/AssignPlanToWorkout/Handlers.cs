@@ -27,7 +27,7 @@ namespace WorkoutService.Features.WorkoutPlans.AssignPlanToWorkout
             }
             // error here
             //workout.WorkoutPlanId = workoutPlan.Id;
-            await _unitOfWork.CompleteAsync();
+            await _unitOfWork.SaveChangesAsync();
 
             return Unit.Value;
         }
