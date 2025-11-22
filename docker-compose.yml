@@ -1,0 +1,36 @@
+version: '3.4'
+
+services:
+  # -------------------------------------------------------
+  # 1. Database Service (SQL Server)
+  # -------------------------------------------------------
+  workoutdb:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: workout_sql_server
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong!Passw0rd  # Password must contain Upper, Lower, Numbers, and Symbols
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql  # Persist data so it's not lost when container stops
+
+  # -------------------------------------------------------
+  # 2. Application Service (WorkoutService)
+  # -------------------------------------------------------
+  workoutservice:
+    image: ${DOCKER_REGISTRY-}workoutservice
+    build:
+      context: .
+      dockerfile: WorkoutService/Dockerfile
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      - workoutdb  # Ensures the app starts after the database
+
+# -------------------------------------------------------
+# 3. Volumes Configuration
+# -------------------------------------------------------
+volumes:
+  sql_data:  # Declaring the named volume used by SQL Server
