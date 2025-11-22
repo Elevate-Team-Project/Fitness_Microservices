@@ -1,10 +1,11 @@
-﻿using WorkoutService.Domain.Interfaces;
+﻿using Microsoft.AspNetCore.Http;
+using WorkoutService.Domain.Interfaces;
 
 namespace WorkoutService.MiddleWares
 {
-    public class TransactionMiddleware
+    // It is recommended to implement IMiddleware when injecting a Scoped service (IUnitOfWork) in the constructor
+    public class TransactionMiddleware : IMiddleware
     {
-
         private readonly IUnitOfWork _unitOfWork;
 
         public TransactionMiddleware(IUnitOfWork unitOfWork)
@@ -14,6 +15,18 @@ namespace WorkoutService.MiddleWares
 
         public async Task InvokeAsync(HttpContext context, RequestDelegate next)
         {
+            // ✅ Optimization: Check if the request is a read-only operation.
+            // We exclude GET, OPTIONS, and HEAD methods to avoid unnecessary transaction overhead.
+            if (HttpMethods.IsGet(context.Request.Method) ||
+                HttpMethods.IsOptions(context.Request.Method) ||
+                HttpMethods.IsHead(context.Request.Method))
+            {
+                // Proceed directly without opening a transaction
+                await next(context);
+                return;
+            }
+
+            // ✅ Begin transaction for state-modifying operations (POST, PUT, DELETE, PATCH)
             await _unitOfWork.BeginTransactionAsync();
 
             try
