@@ -19,16 +19,35 @@ namespace WorkoutService.Features.Workouts.GetWorkoutDetails
 
         public async Task<RequestResponse<WorkoutDetailsViewModel>> Handle(GetWorkoutDetailsQuery request, CancellationToken cancellationToken)
         {
-            var workout = await _workoutRepository.GetAll()
-                .Include(w => w.WorkoutExercises)
-                .FirstOrDefaultAsync(w => w.Id == request.Id, cancellationToken);
+            var workoutDetailsVm = await _workoutRepository.GetAll()
+                .Where(w => w.Id == request.Id)
+                .Select(w => new WorkoutDetailsViewModel
+                {
+                    Id = w.Id,
+                    Name = w.Name,
+                    Description = w.Description,
+                    Category = w.Category,
+                    Difficulty = w.Difficulty,
+                    Duration = w.DurationInMinutes,
+                    CaloriesBurn = w.CaloriesBurn,
+                    IsPremium = w.IsPremium,
+                    Rating = w.Rating,
+                    Exercises = w.WorkoutExercises.Select(we => new ExerciseViewModel
+                    {
+                        Id = we.ExerciseId,
+                        Name = we.Exercise.Name,
+                        Sets = we.Sets,
+                        Reps = we.Reps,
+                        RestTime = we.RestTimeInSeconds,
+                        Order = we.Order
+                    }).OrderBy(e => e.Order).ToList()
+                })
+                .FirstOrDefaultAsync(cancellationToken);
 
-            if (workout == null)
+            if (workoutDetailsVm == null)
             {
                 return RequestResponse<WorkoutDetailsViewModel>.Fail("Workout not found");
             }
-
-            var workoutDetailsVm = workout.Adapt<WorkoutDetailsViewModel>();
 
             // Mocking variations and tips for now, as they are not in the domain model
             workoutDetailsVm.Variations = new WorkoutVariationsViewModel
