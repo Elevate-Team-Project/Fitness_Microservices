@@ -19,10 +19,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessAPIGateway", "Fitnes
 EndProject
 Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{81DDED9D-158B-E303-5F62-77A2896D2A5A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkoutService.Benchmark", "..\WorkoutService.Benchmark\WorkoutService.Benchmark.csproj", "{5EE5F963-7485-4541-8DF9-B443C65E2008}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Service-Level Benchmarking", "Service-Level Benchmarking", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -61,16 +57,9 @@ Global
 		{81DDED9D-158B-E303-5F62-77A2896D2A5A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{81DDED9D-158B-E303-5F62-77A2896D2A5A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{81DDED9D-158B-E303-5F62-77A2896D2A5A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5EE5F963-7485-4541-8DF9-B443C65E2008}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5EE5F963-7485-4541-8DF9-B443C65E2008}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5EE5F963-7485-4541-8DF9-B443C65E2008}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5EE5F963-7485-4541-8DF9-B443C65E2008}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{5EE5F963-7485-4541-8DF9-B443C65E2008} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AAAA1382-1DF9-43C6-84F8-8A7B386DBD57}
