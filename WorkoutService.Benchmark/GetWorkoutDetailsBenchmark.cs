@@ -1,11 +1,10 @@
 using BenchmarkDotNet.Attributes;
 using Microsoft.EntityFrameworkCore;
-using Moq;
 using WorkoutService.Domain.Entities;
-using WorkoutService.Domain.Interfaces;
 using WorkoutService.Features.Workouts.GetWorkoutDetails;
+using WorkoutService.Infrastructure;
 using WorkoutService.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore.InMemory;
+
 
 namespace WorkoutService.Benchmark
 {
@@ -19,13 +18,16 @@ namespace WorkoutService.Benchmark
         [GlobalSetup]
         public void Setup()
         {
+            // 1. Configure EF Core to use InMemory Database
+            // We use a unique GUID for the database name to ensure isolation between runs if needed.
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()) // Unique DB for each run
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
 
             _dbContext = new ApplicationDbContext(options);
 
-            // Seed data
+            // 2. Seed Data
+            // We populate the InMemory database with the necessary entities.
             var workoutPlan = new WorkoutPlan
             {
                 Id = 1,
@@ -35,13 +37,12 @@ namespace WorkoutService.Benchmark
                 Difficulty = "Intermediate",
                 Status = "Active",
                 ExternalPlanId = "plan_123"
-
             };
             _dbContext.WorkoutPlans.Add(workoutPlan);
 
-            var exercise = new Exercise 
-            { 
-                Id = 1, 
+            var exercise = new Exercise
+            {
+                Id = 1,
                 Name = "Push Up",
                 Description = "Standard pushup",
                 Difficulty = "Beginner"
@@ -76,24 +77,27 @@ namespace WorkoutService.Benchmark
             _dbContext.Workouts.Add(workout);
             _dbContext.SaveChanges();
 
-            // Mock Repository
-            var mockRepo = new Mock<IBaseRepository<Workout>>();
-            // We need to ensure GetAll returns the DbSet so EF Core functionality (Select) works
-            mockRepo.Setup(r => r.GetAll()).Returns(_dbContext.Workouts);
+            // 3. Initialize Handler using the Real Repository (No Moq)
+            // Instead of using Moq (which adds memory overhead for dynamic proxies),
+            // we use the actual BaseRepository implementation connected to the InMemory DB.
+            var realRepo = new BaseRepository<Workout>(_dbContext);
 
-            _handler = new GetWorkoutDetailsHandler(mockRepo.Object);
+            _handler = new GetWorkoutDetailsHandler(realRepo);
             _query = new GetWorkoutDetailsQuery(1);
         }
 
         [Benchmark]
         public async Task GetWorkoutDetails()
         {
+            // Execute the handler logic.
+            // The overhead here should now reflect only EF Core and your mapping logic.
             await _handler.Handle(_query, CancellationToken.None);
         }
 
         [GlobalCleanup]
         public void Cleanup()
         {
+            // Clean up resources to prevent memory leaks after the benchmark completes.
             _dbContext.Database.EnsureDeleted();
             _dbContext.Dispose();
         }

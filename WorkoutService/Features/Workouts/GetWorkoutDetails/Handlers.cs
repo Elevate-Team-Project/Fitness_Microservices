@@ -1,4 +1,3 @@
-using Mapster;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using WorkoutService.Domain.Entities;
@@ -12,6 +11,29 @@ namespace WorkoutService.Features.Workouts.GetWorkoutDetails
     {
         private readonly IBaseRepository<Workout> _workoutRepository;
 
+
+        private static readonly WorkoutVariationsViewModel _defaultVariations = new()
+        {
+            Beginner = new VariationViewModel
+            {
+                Modifications = new List<string> { "Knee push-ups" },
+                EstimatedDuration = 35,
+                CaloriesBurn = 250
+            },
+            Advanced = new VariationViewModel
+            {
+                Modifications = new List<string> { "Weighted push-ups" },
+                EstimatedDuration = 55,
+                CaloriesBurn = 450
+            }
+        };
+
+        private static readonly List<string> _defaultTips = new()
+        {
+            "Warm up properly",
+            "Focus on form"
+        };
+
         public GetWorkoutDetailsHandler(IBaseRepository<Workout> workoutRepository)
         {
             _workoutRepository = workoutRepository;
@@ -20,6 +42,7 @@ namespace WorkoutService.Features.Workouts.GetWorkoutDetails
         public async Task<RequestResponse<WorkoutDetailsViewModel>> Handle(GetWorkoutDetailsQuery request, CancellationToken cancellationToken)
         {
             var workoutDetailsVm = await _workoutRepository.GetAll()
+                .AsNoTracking()
                 .Where(w => w.Id == request.Id)
                 .Select(w => new WorkoutDetailsViewModel
                 {
@@ -32,15 +55,17 @@ namespace WorkoutService.Features.Workouts.GetWorkoutDetails
                     CaloriesBurn = w.CaloriesBurn,
                     IsPremium = w.IsPremium,
                     Rating = w.Rating,
-                    Exercises = w.WorkoutExercises.Select(we => new ExerciseViewModel
-                    {
-                        Id = we.ExerciseId,
-                        Name = we.Exercise.Name,
-                        Sets = we.Sets,
-                        Reps = we.Reps,
-                        RestTime = we.RestTimeInSeconds,
-                        Order = we.Order
-                    }).OrderBy(e => e.Order).ToList()
+                    Exercises = w.WorkoutExercises
+                        .OrderBy(we => we.Order) 
+                        .Select(we => new ExerciseViewModel
+                        {
+                            Id = we.ExerciseId,
+                            Name = we.Exercise.Name,
+                            Sets = we.Sets,
+                            Reps = we.Reps,
+                            RestTime = we.RestTimeInSeconds,
+                            Order = we.Order
+                        }).ToList()
                 })
                 .FirstOrDefaultAsync(cancellationToken);
 
@@ -49,13 +74,8 @@ namespace WorkoutService.Features.Workouts.GetWorkoutDetails
                 return RequestResponse<WorkoutDetailsViewModel>.Fail("Workout not found");
             }
 
-            // Mocking variations and tips for now, as they are not in the domain model
-            workoutDetailsVm.Variations = new WorkoutVariationsViewModel
-            {
-                Beginner = new VariationViewModel { Modifications = new List<string> { "Knee push-ups" }, EstimatedDuration = 35, CaloriesBurn = 250 },
-                Advanced = new VariationViewModel { Modifications = new List<string> { "Weighted push-ups" }, EstimatedDuration = 55, CaloriesBurn = 450 }
-            };
-            workoutDetailsVm.Tips = new List<string> { "Warm up properly", "Focus on form" };
+            workoutDetailsVm.Variations = _defaultVariations;
+            workoutDetailsVm.Tips = _defaultTips;
 
             return RequestResponse<WorkoutDetailsViewModel>.Success(workoutDetailsVm, "Workout details fetched successfully");
         }

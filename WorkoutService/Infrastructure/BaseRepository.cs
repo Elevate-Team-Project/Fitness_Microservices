@@ -31,17 +31,17 @@ namespace WorkoutService.Infrastructure
             return await query.FirstOrDefaultAsync(e => Microsoft.EntityFrameworkCore.EF.Property<int>(e, "Id") == id);
         }
 
-        public async Task<IEnumerable<T>> GetAllAsync(params Expression<Func<T, object>>[] includes)
-        {
-            IQueryable<T> query = _dbSet;
+        //public async Task<IEnumerable<T>> GetAllAsync(params Expression<Func<T, object>>[] includes)
+        //{
+        //    IQueryable<T> query = _dbSet;
 
-            foreach (var include in includes)
-            {
-                query = query.Include(include);
-            }
+        //    foreach (var include in includes)
+        //    {
+        //        query = query.Include(include);
+        //    }
 
-            return await query.ToListAsync();
-        }
+        //    return await query.ToListAsync();
+        //}
 
         public IQueryable<T> GetAll()
         {

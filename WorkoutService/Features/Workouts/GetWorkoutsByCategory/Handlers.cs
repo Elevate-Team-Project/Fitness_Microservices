@@ -1,4 +1,4 @@
-using Mapster;
+﻿using Mapster;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using WorkoutService.Domain.Entities;
@@ -19,7 +19,10 @@ namespace WorkoutService.Features.Workouts.GetWorkoutsByCategory
 
         public async Task<RequestResponse<PaginatedResult<WorkoutViewModel>>> Handle(GetWorkoutsByCategoryQuery request, CancellationToken cancellationToken)
         {
-            var query = _workoutRepository.GetAll().Where(w => w.Category == request.CategoryName);
+            // 1. AsNoTracking is recommended for read-only queries to avoid change tracking overhead
+            var query = _workoutRepository.GetAll()
+                .AsNoTracking()
+                .Where(w => w.Category == request.CategoryName);
 
             if (!string.IsNullOrEmpty(request.Difficulty))
             {
@@ -28,12 +31,23 @@ namespace WorkoutService.Features.Workouts.GetWorkoutsByCategory
 
             var totalCount = await query.CountAsync(cancellationToken);
 
-            var workouts = await query
-                .Skip((request.Page - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+            // 2. Core Optimization: Use Manual Projection (.Select)
+            // This ensures only the required columns are fetched from the database (SQL SELECT)
+            // instead of fetching the entire Entity.
+            var workoutVms = await query
+               .Skip((request.Page - 1) * request.PageSize)
+               .Take(request.PageSize)
+               .Select(w => new WorkoutViewModel
+               {
+                   Id = w.Id,
+                   Name = w.Name,
+                   Description = w.Description, // Fetch only required properties
+                   Difficulty = w.Difficulty,
+                   Rating = w.Rating
+                   // Map the remaining properties manually here...
+               })
+               .ToListAsync(cancellationToken);
 
-            var workoutVms = workouts.Adapt<List<WorkoutViewModel>>();
             var paginatedResult = new PaginatedResult<WorkoutViewModel>(workoutVms, totalCount, request.Page, request.PageSize);
 
             return RequestResponse<PaginatedResult<WorkoutViewModel>>.Success(paginatedResult, "Category workouts fetched successfully");

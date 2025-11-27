@@ -54,7 +54,10 @@ public class Program
             // Add DBContext for SQL Server
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             {
-                options.UseSqlServer(config.GetConnectionString("DefaultConnection"));
+                options.UseSqlServer(config.GetConnectionString("DefaultConnection"))
+                .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+
+
                 if (builder.Environment.IsDevelopment())
                 {
                     options.EnableSensitiveDataLogging(true);
