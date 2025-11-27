@@ -1,16 +1,17 @@
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
+using Microsoft.Data.Sqlite; // ✅ Required
 using Microsoft.EntityFrameworkCore;
 using WorkoutService.Domain.Entities;
 using WorkoutService.Features.Workouts.GetWorkoutDetails;
 using WorkoutService.Infrastructure;
 using WorkoutService.Infrastructure.Data;
 
-
 namespace WorkoutService.Benchmark
 {
     [MemoryDiagnoser]
     public class GetWorkoutDetailsBenchmark
     {
+        private SqliteConnection _connection;
         private ApplicationDbContext _dbContext;
         private GetWorkoutDetailsHandler _handler;
         private GetWorkoutDetailsQuery _query;
@@ -18,21 +19,25 @@ namespace WorkoutService.Benchmark
         [GlobalSetup]
         public void Setup()
         {
-            // 1. Configure EF Core to use InMemory Database
-            // We use a unique GUID for the database name to ensure isolation between runs if needed.
+            // 1. Setup SQLite In-Memory Connection
+            _connection = new SqliteConnection("DataSource=:memory:");
+            _connection.Open(); // Keep connection open
+
+            // 2. Configure Options
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .UseSqlite(_connection)
                 .Options;
 
             _dbContext = new ApplicationDbContext(options);
+            _dbContext.Database.EnsureCreated(); // Create tables
 
-            // 2. Seed Data
-            // We populate the InMemory database with the necessary entities.
+            // 3. Seed Data
+            // Create Plan first (Foreign Key)
             var workoutPlan = new WorkoutPlan
             {
                 Id = 1,
                 Name = "Test Plan",
-                Description = "Test Description",
+                Description = "Desc",
                 Goal = "Strength",
                 Difficulty = "Intermediate",
                 Status = "Active",
@@ -40,6 +45,7 @@ namespace WorkoutService.Benchmark
             };
             _dbContext.WorkoutPlans.Add(workoutPlan);
 
+            // Create Exercise
             var exercise = new Exercise
             {
                 Id = 1,
@@ -49,6 +55,7 @@ namespace WorkoutService.Benchmark
             };
             _dbContext.Exercises.Add(exercise);
 
+            // Create Workout
             var workout = new Workout
             {
                 Id = 1,
@@ -73,32 +80,27 @@ namespace WorkoutService.Benchmark
                     }
                 }
             };
-
             _dbContext.Workouts.Add(workout);
             _dbContext.SaveChanges();
 
-            // 3. Initialize Handler using the Real Repository (No Moq)
-            // Instead of using Moq (which adds memory overhead for dynamic proxies),
-            // we use the actual BaseRepository implementation connected to the InMemory DB.
-            var realRepo = new BaseRepository<Workout>(_dbContext);
-
-            _handler = new GetWorkoutDetailsHandler(realRepo);
+            // 4. Initialize Handler
+            var repo = new BaseRepository<Workout>(_dbContext);
+            _handler = new GetWorkoutDetailsHandler(repo);
             _query = new GetWorkoutDetailsQuery(1);
         }
 
         [Benchmark]
         public async Task GetWorkoutDetails()
         {
-            // Execute the handler logic.
-            // The overhead here should now reflect only EF Core and your mapping logic.
+            // Using the existing context (Unscoped) to measure query speed purely
             await _handler.Handle(_query, CancellationToken.None);
         }
 
         [GlobalCleanup]
         public void Cleanup()
         {
-            // Clean up resources to prevent memory leaks after the benchmark completes.
-            _dbContext.Database.EnsureDeleted();
+            _connection.Close();
+            _connection.Dispose();
             _dbContext.Dispose();
         }
     }
