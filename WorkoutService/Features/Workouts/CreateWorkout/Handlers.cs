@@ -31,12 +31,14 @@ namespace WorkoutService.Features.Workouts.CreateWorkout
             {
                 Name = request.Dto.Name,
                 Description = request.Dto.Description,
+                CaloriesBurn = request.Dto.CaloriesBurn,
+                Category = request.Dto.Category,
+                Difficulty = request.Dto.Difficulty,
+                DurationInMinutes = request.Dto.DurationInMinutes,
+                IsPremium = request.Dto.IsPremium,
+                Rating = 0.0,
                 CreatedAt = DateTime.UtcNow // Assuming you have this field
             };
-
-            await _workoutRepository.AddAsync(workout);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
             // ✅ 5. Publish the Event to RabbitMQ
             // We use an anonymous object that matches the IWorkoutCreated interface properties.
             await _publishEndpoint.Publish<IWorkoutCreated>(new
@@ -46,6 +48,10 @@ namespace WorkoutService.Features.Workouts.CreateWorkout
                 Description = workout.Description,
                 CreatedAt = DateTime.UtcNow
             }, cancellationToken);
+
+            await _workoutRepository.AddAsync(workout);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
 
             return new WorkoutVm(workout.Id, workout.Name, workout.Description);
         }

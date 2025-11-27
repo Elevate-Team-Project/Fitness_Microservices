@@ -14,8 +14,8 @@
         public string? ImageUrl { get; set; }
         public string? VideoUrl { get; set; }
         public bool IsPremium { get; set; }
-        public double Rating { get; set; }
-        public int TotalRatings { get; set; }
+        public double? Rating { get; set; }
+        public int? TotalRatings { get; set; }
 
         // --- Relationships ---
 

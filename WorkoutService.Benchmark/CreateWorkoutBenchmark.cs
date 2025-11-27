@@ -49,8 +49,8 @@ namespace WorkoutService.Benchmark
 
             // 3. Prepare the Command (Data to be inserted)
             // We create this once to exclude object creation cost from the benchmark.
-            var dto = new CreateWorkoutDto("New Workout", "Description for benchmark");
-            _command = new CreateWorkoutCommand(dto);
+            //var dto = new CreateWorkoutDto("New Workout", "Description for benchmark");
+            //_command = new CreateWorkoutCommand(dto);
         }
 
         [Benchmark]
