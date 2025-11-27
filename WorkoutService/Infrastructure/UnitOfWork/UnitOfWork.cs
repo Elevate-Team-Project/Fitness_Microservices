@@ -55,5 +55,10 @@ namespace WorkoutService.Infrastructure.UnitOfWork
         {
             return await _context.SaveChangesAsync();
         }
+
+        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken)
+        {
+            return await _context.SaveChangesAsync(cancellationToken);
+        }
     }
 }

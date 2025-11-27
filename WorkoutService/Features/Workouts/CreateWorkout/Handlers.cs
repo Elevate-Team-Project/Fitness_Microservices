@@ -1,7 +1,9 @@
-using MediatR;
+﻿using MediatR;
+using MassTransit; // ✅ 1. Add MassTransit namespace
 using WorkoutService.Features.Workouts.CreateWorkout.ViewModels;
 using WorkoutService.Domain.Interfaces;
 using WorkoutService.Domain.Entities;
+using WorkoutService.Contracts; // ✅ 2. Add Contracts namespace (Where IWorkoutCreated is defined)
 
 namespace WorkoutService.Features.Workouts.CreateWorkout
 {
@@ -9,18 +11,42 @@ namespace WorkoutService.Features.Workouts.CreateWorkout
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IBaseRepository<Workout> _workoutRepository;
-        public CreateWorkoutHandler(IUnitOfWork unitOfWork , IBaseRepository<Workout> workoutRepository)
+        private readonly IPublishEndpoint _publishEndpoint; // ✅ 3. Add Publish Endpoint field
+
+        // ✅ 4. Inject IPublishEndpoint in Constructor
+        public CreateWorkoutHandler(
+            IUnitOfWork unitOfWork,
+            IBaseRepository<Workout> workoutRepository,
+            IPublishEndpoint publishEndpoint)
         {
             _unitOfWork = unitOfWork;
             _workoutRepository = workoutRepository;
+            _publishEndpoint = publishEndpoint;
         }
 
         public async Task<WorkoutVm> Handle(CreateWorkoutCommand request, CancellationToken cancellationToken)
         {
-            // TODO: Add mapping
-            var workout = new Workout { Name = request.Dto.Name, Description = request.Dto.Description };
+            // TODO: Add mapping (Consider using Mapster here later)
+            var workout = new Workout
+            {
+                Name = request.Dto.Name,
+                Description = request.Dto.Description,
+                CreatedAt = DateTime.UtcNow // Assuming you have this field
+            };
+
             await _workoutRepository.AddAsync(workout);
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // ✅ 5. Publish the Event to RabbitMQ
+            // We use an anonymous object that matches the IWorkoutCreated interface properties.
+            await _publishEndpoint.Publish<IWorkoutCreated>(new
+            {
+                WorkoutId = workout.Id,
+                Name = workout.Name,
+                Description = workout.Description,
+                CreatedAt = DateTime.UtcNow
+            }, cancellationToken);
+
             return new WorkoutVm(workout.Id, workout.Name, workout.Description);
         }
     }

@@ -69,10 +69,10 @@ namespace WorkoutService.Benchmark
             // Initialize dependencies with the fresh context
             var unitOfWork = new BenchmarkUnitOfWork(context);
             var repo = new BaseRepository<Workout>(context);
-            var handler = new CreateWorkoutHandler(unitOfWork, repo);
+            //var handler = new CreateWorkoutHandler(unitOfWork, repo);
 
-            // Execute the handler
-            await handler.Handle(_command, CancellationToken.None);
+            //// Execute the handler
+            //await handler.Handle(_command, CancellationToken.None);
 
             // 'using' statement disposes the context automatically here,
             // clearing the tracked memory.

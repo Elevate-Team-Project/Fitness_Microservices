@@ -1,6 +1,7 @@
 ﻿using Mapster;
 using MapsterMapper;
 using MediatR;
+using MassTransit; // ✅ 1. Add this namespace
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -15,7 +16,7 @@ using WorkoutService.Features;
 using WorkoutService.Infrastructure;
 using WorkoutService.Infrastructure.Data;
 using WorkoutService.Infrastructure.UnitOfWork;
-using WorkoutService.MiddleWares; // ✅ Don't forget this namespace
+using WorkoutService.MiddleWares;
 
 public class Program
 {
@@ -90,6 +91,30 @@ public class Program
             var typeAdapterConfig = TypeAdapterConfig.GlobalSettings;
             typeAdapterConfig.Scan(Assembly.GetExecutingAssembly());
             builder.Services.AddSingleton(typeAdapterConfig);
+
+            // =========================================================================
+            // ✅ 1.5. Add MassTransit (RabbitMQ) Configuration
+            // =========================================================================
+            builder.Services.AddMassTransit(x =>
+            {
+                // If you have consumers (listeners) in this service, register them here
+                // x.AddConsumer<MyConsumer>(); 
+
+                x.UsingRabbitMq((context, cfg) =>
+                {
+                    // Configure Connection to RabbitMQ
+                    cfg.Host("localhost", "/", h =>
+                    {
+                        h.Username("guest");
+                        h.Password("guest");
+                    });
+
+                    // Automatically configure endpoints for registered consumers
+                    cfg.ConfigureEndpoints(context);
+                });
+            });
+            // =========================================================================
+
 
             // Add CORS
             builder.Services.AddCors(options =>
@@ -171,14 +196,12 @@ public class Program
             // ----------------------------------------------------------
 
             // ✅✅✅ 1. Error Handling Middleware (Place it at the very top)
-            // This ensures it catches errors from Swagger, Auth, Transaction, or Endpoints
             app.UseMiddleware<ErrorHandlingMiddleware>();
 
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-                // app.UseDeveloperExceptionPage(); // Can be commented out if using custom ErrorHandlingMiddleware
             }
 
             app.UseHttpsRedirection();
@@ -188,7 +211,6 @@ public class Program
             app.UseAuthorization();
 
             // ✅✅✅ 2. Transaction Middleware (After Auth, Before Endpoints)
-            // Ensures transactions are only created for authenticated requests (if endpoint requires auth)
             app.UseMiddleware<TransactionMiddleware>();
 
             app.MapAllEndpoints();
@@ -203,6 +225,6 @@ public class Program
         {
             Log.CloseAndFlush();
         }
-        
+
     }
 }
