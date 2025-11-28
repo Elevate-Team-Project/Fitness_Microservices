@@ -4,11 +4,10 @@ using Fitness.Infrastructure.Services;
 using System.Linq.Expressions;
 using Fitness.Data;
 using Fitness.Api.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Fitness.Infrastructure.Repositories
 {
-    public class Repository<T> : IRepository<T> where T : BaseEntity
+    public class Repository<T> : IRepository<T> where T :BaseEntity
     {
         private readonly ApplicationDbContext _context;
         protected readonly DbSet<T> _dbSet;
@@ -91,43 +90,11 @@ namespace Fitness.Infrastructure.Repositories
         }
 
 
-        public IQueryable<T> Query()
+        public IQueryable<T> Query() => _dbSet.AsQueryable();
+        public Task SaveChangesAsync()
         {
-            return _context.Set<T>().AsQueryable();
+            throw new NotImplementedException();
         }
-
-        public void SaveInclude(T entity, params string[] includedProperties)
-        {
-            var LocalEntity = _dbSet.Local.FirstOrDefault(e => e.Id == entity.Id);
-            EntityEntry entry;
-
-            if (LocalEntity == null)
-            {
-                entry = _context.Entry(entity);
-            }
-            else
-            {
-                entry = _context.ChangeTracker.Entries<T>().First(e => e.Entity.Id == entity.Id);
-            }
-
-            foreach (var property in entry.Properties)
-            {
-                if (property.Metadata.IsPrimaryKey())
-                    continue;
-                else
-                {
-                    if (includedProperties.Contains(property.Metadata.Name))
-                    {
-                        property.IsModified = true;
-                    }
-                    else
-                    {
-                        property.IsModified = false;
-                    }
-                }
-            }
-        }
-
     }
 }
 

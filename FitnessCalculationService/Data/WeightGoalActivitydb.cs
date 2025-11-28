@@ -6,7 +6,7 @@ namespace Fitness.Data
     {
         public Guid Id { get; set; }
 
-        public Guid  UserId { get; set; }
+        public string  UserId { get; set; }
         public int Age { get; set; }
         public string Gender { get; set; } = string.Empty;
         public double Weight { get; set; }

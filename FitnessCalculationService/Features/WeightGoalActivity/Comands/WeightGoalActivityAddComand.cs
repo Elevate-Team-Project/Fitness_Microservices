@@ -19,13 +19,13 @@ namespace Fitness.Features.WeightGoalActivity.Comands
 
     public  class WeightGoalActivityAddCommandHandler:IRequestHandler<WeightGoalActivityAddComand,Guid>
     {
-       
+        private readonly ApplicationDbContext _context;
         private readonly IRepository<WeightGoalActivitydb> _wgarepository;
 
 
-        public WeightGoalActivityAddCommandHandler(IRepository<WeightGoalActivitydb> wgarepository )
+        public WeightGoalActivityAddCommandHandler(ApplicationDbContext context,IRepository<WeightGoalActivitydb> wgarepository )
         {
-   
+            _context = context;   
             _wgarepository = wgarepository;
         }
         public async Task<Guid> Handle (WeightGoalActivityAddComand request,CancellationToken cancellationToken)
@@ -33,7 +33,8 @@ namespace Fitness.Features.WeightGoalActivity.Comands
             var dto = request.Addwga;
 
 
-            var add = new WeightGoalActivitydb
+
+            var add = new Data.WeightGoalActivitydb
             {
                 UserId = dto.UserId,
                 Weight = dto.Weight,
