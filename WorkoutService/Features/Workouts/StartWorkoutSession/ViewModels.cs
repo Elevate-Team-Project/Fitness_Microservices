@@ -7,6 +7,7 @@ namespace WorkoutService.Features.Workouts.StartWorkoutSession.ViewModels
         public string WorkoutName { get; set; }
         public DateTime StartedAt { get; set; }
         public int PlannedDuration { get; set; }
+        public string status { get; set; }
         public string Difficulty { get; set; }
         public List<SessionExerciseViewModel> Exercises { get; set; }
     }

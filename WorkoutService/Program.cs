@@ -1,7 +1,7 @@
 ﻿using Mapster;
 using MapsterMapper;
 using MediatR;
-using MassTransit; // ✅ Required namespace
+using MassTransit; // ✅ Required for MassTransit
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -17,7 +17,10 @@ using WorkoutService.Infrastructure;
 using WorkoutService.Infrastructure.Data;
 using WorkoutService.Infrastructure.UnitOfWork;
 using WorkoutService.MiddleWares;
-using LinqKit;
+using LinqKit; // ✅ Required for WithExpressionExpanding
+// 👇 Make sure to include the namespace where your Consumer is located
+using WorkoutService.Features.Consumers;
+
 public class Program
 {
     public static async Task Main(string[] args)
@@ -49,15 +52,16 @@ public class Program
             // ✅ Register Memory Cache
             builder.Services.AddMemoryCache();
 
-            // ✅✅✅ Register Transaction Middleware (Must be Scoped because it uses UnitOfWork)
+            // ✅ Register Transaction Middleware (Must be Scoped because it uses UnitOfWork)
             builder.Services.AddScoped<TransactionMiddleware>();
 
-            // Add DBContext for SQL Server
+            // ✅ Add DBContext for SQL Server with LinqKit support
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             {
                 options.UseSqlServer(config.GetConnectionString("DefaultConnection"))
-                .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
-                .WithExpressionExpanding();
+                       .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+                       // Critical: Enables LinqKit's PredicateBuilder to work with EF Core
+                       .WithExpressionExpanding();
 
                 if (builder.Environment.IsDevelopment())
                 {
@@ -97,14 +101,14 @@ public class Program
             // =========================================================================
             builder.Services.AddMassTransit(x =>
             {
-                // If you have consumers (listeners) in this service, register them here
-                // x.AddConsumer<MyConsumer>(); 
-
+                // ✅ CRITICAL: Register the Consumer here!
+                // This tells MassTransit to create a queue for 'WorkoutCreatedConsumer' 
+                // and bind it to the 'IWorkoutCreated' exchange.
+                x.AddConsumer<WorkoutCreatedConsumer>();
+                x.AddConsumer<WorkoutSessionStartedConsumer>();
                 x.UsingRabbitMq((context, cfg) =>
                 {
-                    // ✅ DYNAMIC CONFIGURATION:
-                    // Try to get the RabbitMQ host from configuration (e.g., Environment Variable in Docker).
-                    // If not found (e.g., running locally), default to "localhost".
+                    // Dynamic Host Configuration (Docker vs Localhost)
                     var rabbitMqHost = config["RabbitMq:Host"] ?? "localhost";
 
                     cfg.Host(rabbitMqHost, "/", h =>
@@ -113,12 +117,11 @@ public class Program
                         h.Password("guest");
                     });
 
-                    // Automatically configure endpoints for registered consumers
+                    // ✅ Automatically configures endpoints (Queues) for all registered consumers
                     cfg.ConfigureEndpoints(context);
                 });
             });
             // =========================================================================
-
 
             // Add CORS
             builder.Services.AddCors(options =>
@@ -199,7 +202,7 @@ public class Program
             // 2. Configure the HTTP request pipeline
             // ----------------------------------------------------------
 
-            // ✅✅✅ 1. Error Handling Middleware (Place it at the very top)
+            // ✅ 1. Error Handling Middleware (Top priority)
             app.UseMiddleware<ErrorHandlingMiddleware>();
 
             if (app.Environment.IsDevelopment())
@@ -214,7 +217,7 @@ public class Program
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // ✅✅✅ 2. Transaction Middleware (After Auth, Before Endpoints)
+            // ✅ 2. Transaction Middleware (After Auth, Before Endpoints)
             app.UseMiddleware<TransactionMiddleware>();
 
             app.MapAllEndpoints();
@@ -229,6 +232,5 @@ public class Program
         {
             Log.CloseAndFlush();
         }
-        
     }
 }

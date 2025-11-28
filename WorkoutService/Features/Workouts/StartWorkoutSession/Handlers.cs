@@ -1,73 +1,57 @@
-using Mapster;
+﻿using Mapster;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
-using WorkoutService.Domain.Entities;
-using WorkoutService.Domain.Interfaces;
+using MassTransit; // ✅ Required
+using WorkoutService.Contracts; // ✅ Required
 using WorkoutService.Features.Shared;
 using WorkoutService.Features.Workouts.StartWorkoutSession.ViewModels;
-using WorkoutService.Infrastructure.Data;
 
 namespace WorkoutService.Features.Workouts.StartWorkoutSession
 {
     public class StartWorkoutSessionCommandHandler : IRequestHandler<StartWorkoutSessionCommand, RequestResponse<WorkoutSessionViewModel>>
     {
-        private readonly IBaseRepository<Workout> _workoutRepository;
-        private readonly IBaseRepository<WorkoutSession> _workoutSessionRepository;
-        private readonly ApplicationDbContext _context;
+        private readonly IPublishEndpoint _publishEndpoint;
 
-        public StartWorkoutSessionCommandHandler(IBaseRepository<Workout> workoutRepository, IBaseRepository<WorkoutSession> workoutSessionRepository, ApplicationDbContext context)
+        // ✅ Lightweight Constructor: No Repositories, only MassTransit
+        public StartWorkoutSessionCommandHandler(IPublishEndpoint publishEndpoint)
         {
-            _workoutRepository = workoutRepository;
-            _workoutSessionRepository = workoutSessionRepository;
-            _context = context;
+            _publishEndpoint = publishEndpoint;
         }
 
         public async Task<RequestResponse<WorkoutSessionViewModel>> Handle(StartWorkoutSessionCommand request, CancellationToken cancellationToken)
         {
-            // Project only the necessary fields: Id and WorkoutExercises (Id, Order)
-            var workoutData = await _workoutRepository.GetAll()
-                .Where(w => w.Id == request.WorkoutId)
-                .Select(w => new
-                {
-                    w.Id,
-                    Exercises = w.WorkoutExercises.Select(we => new
-                    {
-                        we.Id,
-                        we.Order
-                    }).ToList()
-                })
-                .FirstOrDefaultAsync(cancellationToken);
+            // 1. Prepare Data
+            var startedAt = DateTime.UtcNow;
 
-            if (workoutData == null)
-            {
-                return RequestResponse<WorkoutSessionViewModel>.Fail("Workout not found");
-            }
+            // Mocking UserID (In a real app, extract this from the HTTP Context/Token)
+            var userId = Guid.NewGuid();
 
-            var session = new WorkoutSession
+            // 2. Publish "Fire-and-Forget" Event
+            // The Consumer will handle fetching details and saving to the DB.
+            await _publishEndpoint.Publish<IWorkoutSessionStarted>(new
             {
-                UserId = Guid.NewGuid(), // Mocking user ID for now
-                WorkoutId = workoutData.Id,
-                Status = "InProgress",
-                StartedAt = DateTime.UtcNow,
-                PlannedDurationInMinutes = request.Dto.PlannedDuration,
-                Difficulty = request.Dto.Difficulty
+                WorkoutId = request.WorkoutId,
+                UserId = userId,
+                PlannedDurationMinutes = request.Dto.PlannedDuration,
+                Difficulty = request.Dto.Difficulty,
+                StartedAt = startedAt
+            }, cancellationToken);
+
+            // 3. Return Immediate Provisional Response
+            // Since we are not querying the DB, we cannot return 'WorkoutName' or 'Exercises' yet.
+            // The Frontend should handle this state (e.g., show a spinner or use cached data).
+            var responseVm = new WorkoutSessionViewModel
+            {
+                SessionId = "0", // Indicates "Pending Creation"
+                WorkoutId = request.WorkoutId,
+                WorkoutName = "Processing...", // Placeholder as we didn't fetch it
+                status = "InProgress",
+                PlannedDuration = request.Dto.PlannedDuration,
+                Difficulty = request.Dto.Difficulty,
+                StartedAt = startedAt,
+                Exercises = new List<SessionExerciseViewModel>() // Empty list initially
             };
 
-            var sessionExercises = workoutData.Exercises.Select(e => new WorkoutSessionExercise
-            {
-                ExerciseId = e.Id,
-                Status = "Pending",
-                Order = e.Order
-            }).ToList();
-
-            session.SessionExercises = sessionExercises;
-
-            await _workoutSessionRepository.AddAsync(session);
-            await _context.SaveChangesAsync(cancellationToken);
-
-            var sessionVm = session.Adapt<WorkoutSessionViewModel>();
-
-            return RequestResponse<WorkoutSessionViewModel>.Success(sessionVm, "Workout session started");
+            return RequestResponse<WorkoutSessionViewModel>.Success(responseVm, "Workout session start request queued successfully.");
         }
     }
 }
