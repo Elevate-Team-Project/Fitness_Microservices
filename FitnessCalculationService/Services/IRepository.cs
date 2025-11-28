@@ -20,7 +20,8 @@ namespace Fitness.Infrastructure.Services
         Task<int> CountAsync();
         Task<int> CountAsync(Expression<Func<T, bool>> predicate);
         Task SaveChanges();
-        Task SaveChangesAsync();
+
+        public void SaveInclude(T entity, params string[] includedProperties);
     }
 }
 

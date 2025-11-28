@@ -11,11 +11,12 @@ public class CalculateUserFitnessCommandHandler : IRequestHandler<CalculateUserF
 {
     private readonly ApplicationDbContext _context;
     private readonly IRepository<UserFitnessStatdb> _repo;
-
-    public CalculateUserFitnessCommandHandler(ApplicationDbContext context, IRepository<UserFitnessStatdb> repo)
+    private readonly IConfiguration _configuration;
+    public CalculateUserFitnessCommandHandler(ApplicationDbContext context, IRepository<UserFitnessStatdb> repo, IConfiguration configuration)
     {
         _context = context;
         _repo = repo;
+        _configuration = configuration;
     }
 
     public async Task<Guid> Handle(CalculateUserFitnessCommand request, CancellationToken cancellationToken)

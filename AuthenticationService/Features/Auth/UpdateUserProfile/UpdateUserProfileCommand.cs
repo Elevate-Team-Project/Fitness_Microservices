@@ -11,4 +11,5 @@ public record UpdateUserProfileCommand(
     string? activtyLevel,
     double Height,
     double Weight
+   
 ) : IRequest<UpdateUserProfileResponse>;

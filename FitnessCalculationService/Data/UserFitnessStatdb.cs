@@ -8,7 +8,7 @@
 
         public Guid UserId { get; set; }
 
-        public int weightGoalActivityId { get; set; }
+ 
 
         public decimal Bmr { get; set; }
 
@@ -20,7 +20,8 @@
 
         public DateTime InsertDate { get; set; } = DateTime.Now;
 
-        public WeightGoalActivitydb weightGoalActivity { get; set; }
+        public Guid WeightGoalActivityId { get; set; }
+        public WeightGoalActivitydb WeightGoalActivity { get; set; }
     }
 }
 
