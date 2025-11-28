@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using LinqKit.Core;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Linq.Expressions;
 using WorkoutService.Domain.Entities;
@@ -31,33 +32,10 @@ namespace WorkoutService.Infrastructure
             return await query.FirstOrDefaultAsync(e => Microsoft.EntityFrameworkCore.EF.Property<int>(e, "Id") == id);
         }
 
-        //public async Task<IEnumerable<T>> GetAllAsync(params Expression<Func<T, object>>[] includes)
-        //{
-        //    IQueryable<T> query = _dbSet;
-
-        //    foreach (var include in includes)
-        //    {
-        //        query = query.Include(include);
-        //    }
-
-        //    return await query.ToListAsync();
-        //}
 
         public IQueryable<T> GetAll()
         {
             return _dbSet;
-        }
-
-        public async Task<T> FirstOrDefaultAsync(Expression<Func<T, bool>> criteria, params Expression<Func<T, object>>[] includes)
-        {
-            IQueryable<T> query = _dbSet;
-
-            foreach (var include in includes)
-            {
-                query = query.Include(include);
-            }
-
-            return await query.FirstOrDefaultAsync(criteria);
         }
  
         public async Task AddAsync(T entity)
@@ -123,13 +101,6 @@ namespace WorkoutService.Infrastructure
         {
             _dbSet.Remove(entity);
         }
-
-        // New method to save changes from repository level
-        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            return await _context.SaveChangesAsync(cancellationToken);
-        }
-
         public void DeleteRange(IEnumerable<T> entities)
         {
             foreach (var entity in entities)
@@ -148,21 +119,6 @@ namespace WorkoutService.Infrastructure
             return await _dbSet.CountAsync(criteria);
         }
 
-        // Keep your existing additional methods as they are useful
-        public IQueryable<T> Query()
-        {
-            return _dbSet.AsQueryable();
-        }
-
-        public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
-        {
-            return await _dbSet.Where(predicate).ToListAsync();
-        }
-
-        public void Remove(T entity)
-        {
-            _dbSet.Remove(entity);
-        }
 
         public Task UpdateAsync(T entity)
         {
@@ -176,137 +132,9 @@ namespace WorkoutService.Infrastructure
             return Task.CompletedTask;
         }
 
-        public IQueryable<T> Where(Expression<Func<T, bool>> predicate)
+        public IQueryable<T> Get(Expression<Func<T, bool>> predicate)
         {
             return _dbSet.Where(predicate);
-        }
-
-        public async Task<bool> AnyAsync(Expression<Func<T, bool>> predicate)
-        {
-            return await _dbSet.AnyAsync(predicate);
-        }
-
-        public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
-        {
-            return await _dbSet.FirstOrDefaultAsync(predicate);
-        }
-
-        // Extension methods to support LINQ operations
-        public async Task<List<T>> ToListAsync()
-        {
-            return await _dbSet.ToListAsync();
-        }
-
-        public async Task<TResult> MaxAsync<TResult>(Expression<Func<T, TResult>> selector)
-        {
-            return await _dbSet.MaxAsync(selector);
-        }
-
-        public async Task<TResult> MinAsync<TResult>(Expression<Func<T, TResult>> selector)
-        {
-            return await _dbSet.MinAsync(selector);
-        }
-
-        // Fixed SumAsync and AverageAsync methods
-        public async Task<int> SumAsync(Expression<Func<T, int>> selector)
-        {
-            return await _dbSet.SumAsync(selector);
-        }
-
-        public async Task<long> SumAsync(Expression<Func<T, long>> selector)
-        {
-            return await _dbSet.SumAsync(selector);
-        }
-
-        public async Task<decimal> SumAsync(Expression<Func<T, decimal>> selector)
-        {
-            return await _dbSet.SumAsync(selector);
-        }
-
-        public async Task<double> SumAsync(Expression<Func<T, double>> selector)
-        {
-            return await _dbSet.SumAsync(selector);
-        }
-
-        public async Task<float> SumAsync(Expression<Func<T, float>> selector)
-        {
-            return await _dbSet.SumAsync(selector);
-        }
-
-        public async Task<int?> SumAsync(Expression<Func<T, int?>> selector)
-        {
-            return await _dbSet.SumAsync(selector);
-        }
-
-        public async Task<long?> SumAsync(Expression<Func<T, long?>> selector)
-        {
-            return await _dbSet.SumAsync(selector);
-        }
-
-        public async Task<decimal?> SumAsync(Expression<Func<T, decimal?>> selector)
-        {
-            return await _dbSet.SumAsync(selector);
-        }
-
-        public async Task<double?> SumAsync(Expression<Func<T, double?>> selector)
-        {
-            return await _dbSet.SumAsync(selector);
-        }
-
-        public async Task<float?> SumAsync(Expression<Func<T, float?>> selector)
-        {
-            return await _dbSet.SumAsync(selector);
-        }
-
-        // AverageAsync methods
-        public async Task<double> AverageAsync(Expression<Func<T, int>> selector)
-        {
-            return await _dbSet.AverageAsync(selector);
-        }
-
-        public async Task<double> AverageAsync(Expression<Func<T, long>> selector)
-        {
-            return await _dbSet.AverageAsync(selector);
-        }
-
-        public async Task<decimal> AverageAsync(Expression<Func<T, decimal>> selector)
-        {
-            return await _dbSet.AverageAsync(selector);
-        }
-
-        public async Task<double> AverageAsync(Expression<Func<T, double>> selector)
-        {
-            return await _dbSet.AverageAsync(selector);
-        }
-
-        public async Task<float> AverageAsync(Expression<Func<T, float>> selector)
-        {
-            return await _dbSet.AverageAsync(selector);
-        }
-
-        public async Task<double?> AverageAsync(Expression<Func<T, int?>> selector)
-        {
-            return await _dbSet.AverageAsync(selector);
-        }
-
-        public async Task<double?> AverageAsync(Expression<Func<T, long?>> selector)
-        {
-            return await _dbSet.AverageAsync(selector);
-        }
-
-        public async Task<decimal?> AverageAsync(Expression<Func<T, decimal?>> selector)
-        {
-            return await _dbSet.AverageAsync(selector);
-        }
-
-        public async Task<double?> AverageAsync(Expression<Func<T, double?>> selector)
-        {
-            return await _dbSet.AverageAsync(selector);
-        }
-
-        public async Task<float?> AverageAsync(Expression<Func<T, float?>> selector)
-        {
-            return await _dbSet.AverageAsync(selector);
         }
     }
 }

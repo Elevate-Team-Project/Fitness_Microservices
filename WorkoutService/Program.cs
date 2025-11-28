@@ -17,7 +17,7 @@ using WorkoutService.Infrastructure;
 using WorkoutService.Infrastructure.Data;
 using WorkoutService.Infrastructure.UnitOfWork;
 using WorkoutService.MiddleWares;
-
+using LinqKit;
 public class Program
 {
     public static async Task Main(string[] args)
@@ -56,8 +56,8 @@ public class Program
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             {
                 options.UseSqlServer(config.GetConnectionString("DefaultConnection"))
-                .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
-
+                .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+                .WithExpressionExpanding();
 
                 if (builder.Environment.IsDevelopment())
                 {

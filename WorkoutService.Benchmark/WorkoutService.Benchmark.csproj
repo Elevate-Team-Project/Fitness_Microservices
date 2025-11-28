@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.6" />
+    <PackageReference Include="LinqKit.Microsoft.EntityFrameworkCore" Version="8.1.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.22" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.22" />
     <PackageReference Include="Moq" Version="4.20.72" />
