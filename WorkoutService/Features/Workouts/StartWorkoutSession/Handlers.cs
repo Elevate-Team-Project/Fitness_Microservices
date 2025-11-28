@@ -1,54 +1,67 @@
 ﻿using Mapster;
 using MediatR;
-using MassTransit; // ✅ Required
-using WorkoutService.Contracts; // ✅ Required
+using MassTransit; // ✅ Required for Messaging
+using WorkoutService.Contracts; // ✅ Required for Contracts
 using WorkoutService.Features.Shared;
 using WorkoutService.Features.Workouts.StartWorkoutSession.ViewModels;
+using WorkoutService.Domain.Interfaces; // ✅ Required for ICurrentUserService
 
 namespace WorkoutService.Features.Workouts.StartWorkoutSession
 {
     public class StartWorkoutSessionCommandHandler : IRequestHandler<StartWorkoutSessionCommand, RequestResponse<WorkoutSessionViewModel>>
     {
         private readonly IPublishEndpoint _publishEndpoint;
+        private readonly ICurrentUserService _currentUserService; // ✅ 1. Inject CurrentUserService
 
-        // ✅ Lightweight Constructor: No Repositories, only MassTransit
-        public StartWorkoutSessionCommandHandler(IPublishEndpoint publishEndpoint)
+        // ✅ Lightweight Constructor: MassTransit + User Service only
+        public StartWorkoutSessionCommandHandler(
+            IPublishEndpoint publishEndpoint,
+            ICurrentUserService currentUserService)
         {
             _publishEndpoint = publishEndpoint;
+            _currentUserService = currentUserService;
         }
 
         public async Task<RequestResponse<WorkoutSessionViewModel>> Handle(StartWorkoutSessionCommand request, CancellationToken cancellationToken)
         {
-            // 1. Prepare Data
+            // ✅ 2. Security Check: Validate User is Authenticated
+            if (!_currentUserService.IsAuthenticated || string.IsNullOrEmpty(_currentUserService.UserId))
+            {
+                // 401 Unauthorized
+                return RequestResponse<WorkoutSessionViewModel>.Fail("User is not authenticated");
+            }
+
+            // ✅ 3. Parse User ID from Token (Assuming Auth Service provides Guid)
+            if (!Guid.TryParse(_currentUserService.UserId, out var userId))
+            {
+                // 400 Bad Request if ID format is wrong
+                return RequestResponse<WorkoutSessionViewModel>.Fail("Invalid User ID format in token");
+            }
+
+            // 4. Prepare Data
             var startedAt = DateTime.UtcNow;
 
-            // Mocking UserID (In a real app, extract this from the HTTP Context/Token)
-            var userId = Guid.NewGuid();
-
-            // 2. Publish "Fire-and-Forget" Event
-            // The Consumer will handle fetching details and saving to the DB.
+            // 5. Publish "Fire-and-Forget" Event with REAL User ID
             await _publishEndpoint.Publish<IWorkoutSessionStarted>(new
             {
                 WorkoutId = request.WorkoutId,
-                UserId = userId,
+                UserId = userId, // ✅ Using the real User ID from Token
                 PlannedDurationMinutes = request.Dto.PlannedDuration,
                 Difficulty = request.Dto.Difficulty,
                 StartedAt = startedAt
             }, cancellationToken);
 
-            // 3. Return Immediate Provisional Response
-            // Since we are not querying the DB, we cannot return 'WorkoutName' or 'Exercises' yet.
-            // The Frontend should handle this state (e.g., show a spinner or use cached data).
+            // 6. Return Provisional Response
             var responseVm = new WorkoutSessionViewModel
             {
-                SessionId = "0", // Indicates "Pending Creation"
+                SessionId = "0", // Indicates Pending Creation
                 WorkoutId = request.WorkoutId,
-                WorkoutName = "Processing...", // Placeholder as we didn't fetch it
+                WorkoutName = "Processing...", // Placeholder
                 status = "InProgress",
                 PlannedDuration = request.Dto.PlannedDuration,
                 Difficulty = request.Dto.Difficulty,
                 StartedAt = startedAt,
-                Exercises = new List<SessionExerciseViewModel>() // Empty list initially
+                Exercises = new List<SessionExerciseViewModel>()
             };
 
             return RequestResponse<WorkoutSessionViewModel>.Success(responseVm, "Workout session start request queued successfully.");

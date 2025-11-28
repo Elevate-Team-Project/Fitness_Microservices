@@ -20,6 +20,7 @@ using WorkoutService.MiddleWares;
 using LinqKit; // ✅ Required for WithExpressionExpanding
 // 👇 Make sure to include the namespace where your Consumer is located
 using WorkoutService.Features.Consumers;
+using WorkoutService.Infrastructure.Services;
 
 public class Program
 {
@@ -95,6 +96,9 @@ public class Program
             var typeAdapterConfig = TypeAdapterConfig.GlobalSettings;
             typeAdapterConfig.Scan(Assembly.GetExecutingAssembly());
             builder.Services.AddSingleton(typeAdapterConfig);
+
+            builder.Services.AddHttpContextAccessor(); // ✅ ضيف السطر ده
+            builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
             // =========================================================================
             // ✅ 1.5. Add MassTransit (RabbitMQ) Configuration
