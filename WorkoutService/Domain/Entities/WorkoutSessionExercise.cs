@@ -5,7 +5,7 @@ namespace WorkoutService.Domain.Entities
 {
     public class WorkoutSessionExercise : BaseEntity
     {
-        public int WorkoutSessionId { get; set; } // Note: Check if your Session ID is int or Guid based on your Session class
+        public int WorkoutSessionId { get; set; }
         public WorkoutSession WorkoutSession { get; set; } = null!;
 
         public int ExerciseId { get; set; }

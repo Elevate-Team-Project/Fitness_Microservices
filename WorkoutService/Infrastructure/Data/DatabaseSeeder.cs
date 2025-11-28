@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using WorkoutService.Domain.Entities; // Your correct namespace
+using WorkoutService.Domain.Entities;
+using WorkoutService.Infrastructure.Data;
 
 namespace WorkoutService.Infrastructure.Data
 {
@@ -7,19 +8,53 @@ namespace WorkoutService.Infrastructure.Data
     {
         public static async Task SeedAsync(IServiceProvider sp)
         {
-            var ctx = sp.GetRequiredService<ApplicationDbContext>();
 
+            var ctx = sp.GetRequiredService<ApplicationDbContext>();
+            ctx.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.TrackAll;
+            try
+            {
+            // 1. Seed Plans (Parents)
             await SeedWorkoutPlansAsync(ctx);
+
+            }
+            catch (Exception ex)
+            {
+                // Log or handle exceptions as needed
+
+                throw;
+            }
+            try
+            {
+            // 2. Seed Exercises (Parents)
             await SeedExercisesAsync(ctx);
+            }
+            catch (Exception ex)
+            {
+                // Log or handle exceptions as needed
+
+                throw;
+            }
+            try
+            {
+
+            // 3. Seed Workouts (Children - depend on Plans and Exercises)
             await SeedWorkoutsAsync(ctx);
+            }
+            catch (Exception ex)
+            {
+                // Log or handle exceptions as needed
+                throw;
+            }
         }
 
         private static async Task SeedWorkoutPlansAsync(ApplicationDbContext ctx)
         {
+            // If data exists, do nothing
             if (await ctx.WorkoutPlans.AnyAsync()) return;
 
             var plans = new List<WorkoutPlan>
             {
+                // Note: Removed 'Id' assignment to let SQL Server handle Identity
                 new() {
                     ExternalPlanId = "plan_lw_normal",
                     Name = "Weight Loss - Normal Intensity",
@@ -200,6 +235,7 @@ namespace WorkoutService.Infrastructure.Data
 
             var exercises = new List<Exercise>
             {
+                // Note: Removed 'Id' assignment here as well
                 new() {
                     Name = "Push-up",
                     Description = "A basic calisthenic exercise for upper body strength.",
@@ -420,15 +456,9 @@ namespace WorkoutService.Infrastructure.Data
         {
             if (await ctx.Workouts.AnyAsync()) return;
 
+            // Fetch created plans/exercises from DB to ensure valid IDs and Tracking
             var planBeginner = await ctx.WorkoutPlans.FirstOrDefaultAsync(p => p.ExternalPlanId == "plan_fit_beginner");
             var planNormal = await ctx.WorkoutPlans.FirstOrDefaultAsync(p => p.ExternalPlanId == "plan_lw_normal");
-
-            var pushup = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Push-up");
-            var squat = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Bodyweight Squat");
-            var plank = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Plank");
-            var dbPress = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Dumbbell Bench Press");
-            var dbRow = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Dumbbell Row");
-
             var planFitIntermediate = await ctx.WorkoutPlans.FirstOrDefaultAsync(p => p.ExternalPlanId == "plan_fit_intermediate");
             var planFitAdvanced = await ctx.WorkoutPlans.FirstOrDefaultAsync(p => p.ExternalPlanId == "plan_fit_advanced");
             var planLwEasy = await ctx.WorkoutPlans.FirstOrDefaultAsync(p => p.ExternalPlanId == "plan_lw_easy");
@@ -440,7 +470,11 @@ namespace WorkoutService.Infrastructure.Data
             var planBodyAdvanced = await ctx.WorkoutPlans.FirstOrDefaultAsync(p => p.ExternalPlanId == "plan_body_advanced");
             var planRecActive = await ctx.WorkoutPlans.FirstOrDefaultAsync(p => p.ExternalPlanId == "plan_rec_active");
 
-
+            var pushup = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Push-up");
+            var squat = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Bodyweight Squat");
+            var plank = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Plank");
+            var dbPress = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Dumbbell Bench Press");
+            var dbRow = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Dumbbell Row");
             var inclineDbPress = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Incline Dumbbell Press");
             var barbellBench = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Barbell Bench Press");
             var cableCrossover = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Cable Crossover");
@@ -466,16 +500,8 @@ namespace WorkoutService.Infrastructure.Data
             var jumpingJacks = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Jumping Jacks");
             var burpee = await ctx.Exercises.FirstOrDefaultAsync(e => e.Name == "Burpee");
 
-            if (planBeginner == null || planNormal == null || pushup == null || squat == null || plank == null || dbPress == null || dbRow == null ||
-                planFitIntermediate == null || planFitAdvanced == null || planLwEasy == null || planLwHard == null || planGwBeginner == null ||
-                planStAdvanced == null || planFlexBeginner == null || planEndIntermediate == null || planBodyAdvanced == null || planRecActive == null ||
-                inclineDbPress == null || barbellBench == null || cableCrossover == null || pullup == null || latPulldown == null || deadlift == null ||
-                barbellSquat == null || legPress == null || lunge == null || rdl == null || calfRaise == null || overheadPress == null ||
-                lateralRaise == null || facePull == null || bicepCurl == null || tricepPushdown == null || skullCrusher == null || hammerCurl == null ||
-                legRaise == null || russianTwist == null || abWheel == null || running == null || jumpingJacks == null || burpee == null)
-            {
-                return; // Can't seed
-            }
+            // Safety check
+            if (planBeginner == null || planNormal == null || pushup == null) return;
 
             var workouts = new List<Workout>
             {
@@ -488,9 +514,11 @@ namespace WorkoutService.Infrastructure.Data
                     CaloriesBurn = 150,
                     IsPremium = false,
                     Rating = 0,
-                    WorkoutPlan = planBeginner, // --- FIX: Use navigation property
+                    // Use the Object Reference, NOT ID
+                    WorkoutPlan = planBeginner,
                     WorkoutExercises = new List<WorkoutExercise>
                     {
+                        // Use the Object Reference, NOT ID
                         new() { Exercise = squat, Order = 1, Sets = 3, Reps = "8-12", RestTimeInSeconds = 60 },
                         new() { Exercise = pushup, Order = 2, Sets = 3, Reps = "5-10 (Knees OK)", RestTimeInSeconds = 60 },
                         new() { Exercise = plank, Order = 3, Sets = 3, Reps = "30s", RestTimeInSeconds = 45 }
@@ -505,7 +533,7 @@ namespace WorkoutService.Infrastructure.Data
                     CaloriesBurn = 350,
                     IsPremium = false,
                     Rating = 0,
-                    WorkoutPlan = planNormal, // --- FIX: Use navigation property
+                    WorkoutPlan = planNormal,
                     WorkoutExercises = new List<WorkoutExercise>
                     {
                         new() { Exercise = squat, Order = 1, Sets = 3, Reps = "12-15", RestTimeInSeconds = 60 },

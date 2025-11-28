@@ -1,56 +1,59 @@
-﻿using LinqKit; // ✅ Required for PredicateBuilder
+﻿using LinqKit;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using WorkoutService.Domain.Entities;
 using WorkoutService.Domain.Interfaces;
 using WorkoutService.Features.Shared;
 using WorkoutService.Features.Workouts.GetAllWorkouts.ViewModels;
-using System.Linq.Expressions;
 
 namespace WorkoutService.Features.Workouts.GetAllWorkouts
 {
     public class GetAllWorkoutsHandler : IRequestHandler<GetAllWorkoutsQuery, RequestResponse<PaginatedResult<WorkoutViewModel>>>
     {
         private readonly IBaseRepository<Workout> _workoutRepository;
+        private readonly IMemoryCache _cache;
 
-        public GetAllWorkoutsHandler(IBaseRepository<Workout> workoutRepository)
+        public GetAllWorkoutsHandler(IBaseRepository<Workout> workoutRepository, IMemoryCache cache)
         {
             _workoutRepository = workoutRepository;
+            _cache = cache;
         }
 
         public async Task<RequestResponse<PaginatedResult<WorkoutViewModel>>> Handle(GetAllWorkoutsQuery request, CancellationToken cancellationToken)
         {
-            // 1. Initialize the Predicate Builder (Start with True for AND logic)
-            var predicate = PredicateBuilder.New<Workout>(true);
+            var cacheKey = $"Workouts_Pg{request.Page}_Sz{request.PageSize}_Cat{request.Category}_Dif{request.Difficulty}_Dur{request.Duration}_Ser{request.Search}";
 
-            // 2. Build the Expression Tree dynamically
-            if (!string.IsNullOrEmpty(request.Category))
+            var paginatedResult = await _cache.GetOrCreateAsync(cacheKey, async entry =>
             {
-                predicate.And(w => w.Category == request.Category);
-            }
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+                entry.SlidingExpiration = TimeSpan.FromMinutes(2);
 
-            if (!string.IsNullOrEmpty(request.Difficulty))
-            {
-                predicate.And(w => w.Difficulty == request.Difficulty);
-            }
+                var predicate = PredicateBuilder.New<Workout>(true);
 
-            if (request.Duration.HasValue)
-            {
-                predicate.And(w => w.DurationInMinutes == request.Duration.Value);
-            }
+                if (!string.IsNullOrEmpty(request.Category))
+                {
+                    predicate.And(w => w.Category == request.Category);
+                }
 
-            if (!string.IsNullOrEmpty(request.Search))
-            {
-                predicate.And(w => w.Name.Contains(request.Search) || w.Description.Contains(request.Search));
-            }
+                if (!string.IsNullOrEmpty(request.Difficulty))
+                {
+                    predicate.And(w => w.Difficulty == request.Difficulty);
+                }
 
-            // 3. Pass the 'Tree' to the Repository & Optimization
-            var query = _workoutRepository.Get(predicate)
-                .AsNoTracking(); // ✅ Important: No tracking overhead
+                if (request.Duration.HasValue)
+                {
+                    predicate.And(w => w.DurationInMinutes == request.Duration.Value);
+                }
 
-            // 4. Projection to Struct (Zero Allocation for the wrapper object)
-            var pagedQuery = query
-                .Select(w => new WorkoutViewModel
+                if (!string.IsNullOrEmpty(request.Search))
+                {
+                    predicate.And(w => w.Name.Contains(request.Search) || w.Description.Contains(request.Search));
+                }
+
+                var query = _workoutRepository.Get(predicate).AsNoTracking();
+
+                var pagedQuery = query.Select(w => new WorkoutViewModel
                 {
                     Id = w.Id,
                     Name = w.Name,
@@ -58,22 +61,22 @@ namespace WorkoutService.Features.Workouts.GetAllWorkouts
                     Difficulty = w.Difficulty,
                     Duration = w.DurationInMinutes,
                     CaloriesBurn = w.CaloriesBurn,
-                    ExerciseCount = w.WorkoutExercises.Count(), // ✅ Efficient SQL Count
+                    ExerciseCount = w.WorkoutExercises.Count(),
                     IsPremium = w.IsPremium,
                     Rating = w.Rating,
                     Description = w.Description,
                     TotalRatings = w.TotalRatings
                 });
 
-            var totalCount = await query.CountAsync(cancellationToken);
+                var totalCount = await query.CountAsync(cancellationToken);
 
-            // This will now create a List of Structs (One contiguous block of memory)
-            var workoutVms = await pagedQuery
-                .Skip((request.Page - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+                var workoutVms = await pagedQuery
+                    .Skip((request.Page - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToListAsync(cancellationToken);
 
-            var paginatedResult = new PaginatedResult<WorkoutViewModel>(workoutVms, totalCount, request.Page, request.PageSize);
+                return new PaginatedResult<WorkoutViewModel>(workoutVms, totalCount, request.Page, request.PageSize);
+            });
 
             return RequestResponse<PaginatedResult<WorkoutViewModel>>.Success(paginatedResult, "Workouts fetched successfully");
         }
