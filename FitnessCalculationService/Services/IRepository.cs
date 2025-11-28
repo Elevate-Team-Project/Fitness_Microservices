@@ -5,7 +5,7 @@ using System.Linq.Expressions;
 
 namespace Fitness.Infrastructure.Services
 {
-    public interface IRepository<T> where T :BaseEntity
+    public interface IRepository<T> where T : BaseEntity
     {
         Task<T?> GetByIdAsync(Guid id);
         Task<IEnumerable<T>> GetAllAsync();
@@ -20,7 +20,8 @@ namespace Fitness.Infrastructure.Services
         Task<int> CountAsync();
         Task<int> CountAsync(Expression<Func<T, bool>> predicate);
         Task SaveChanges();
-        Task SaveChangesAsync();
+
+        public void SaveInclude(T entity, params string[] includedProperties);
     }
 }
 

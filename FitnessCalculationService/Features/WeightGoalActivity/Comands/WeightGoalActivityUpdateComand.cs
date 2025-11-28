@@ -7,8 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FitnessCalculationService.Features.WeightGoalActivity.Comands
 {
-    public record WeightGoalActivityUpdateComand(AddWGA updWGA):IRequest<Guid>;
-    
+    public record WeightGoalActivityUpdateComand(AddWGA updWGA) : IRequest<Guid>;
+
 
 
     public class WeightGoalActivityUpdateComandHandler : IRequestHandler<WeightGoalActivityUpdateComand, Guid>
@@ -17,18 +17,18 @@ namespace FitnessCalculationService.Features.WeightGoalActivity.Comands
         private readonly IRepository<UserFitnessStatdb> _fitnessRepository;
 
 
-        public WeightGoalActivityUpdateComandHandler(IRepository<WeightGoalActivitydb> wgarepository,IRepository<UserFitnessStatdb> fitnessRepository)
+        public WeightGoalActivityUpdateComandHandler(IRepository<WeightGoalActivitydb> wgarepository, IRepository<UserFitnessStatdb> fitnessRepository)
         {
 
             _wgarepository = wgarepository;
             _fitnessRepository = fitnessRepository;
         }
 
-        public async Task <Guid> Handle (WeightGoalActivityUpdateComand request,CancellationToken cancellationToken)
+        public async Task<Guid> Handle(WeightGoalActivityUpdateComand request, CancellationToken cancellationToken)
         {
 
             var dto = request.updWGA;
-            
+
 
             var existingwga = await _wgarepository.FirstOrDefaultAsync(wga => wga.UserId == dto.UserId);
             if (existingwga == null)
@@ -42,7 +42,7 @@ namespace FitnessCalculationService.Features.WeightGoalActivity.Comands
             existingwga.ActivityLevel = dto.ActivityLevel;
             existingwga.Goal = dto.Goal;
 
-             _wgarepository.SaveInclude(existingwga);
+            _wgarepository.SaveInclude(existingwga);
 
             double bmr = existingwga.Gender.ToUpper() switch
             {
@@ -80,14 +80,14 @@ namespace FitnessCalculationService.Features.WeightGoalActivity.Comands
             };
 
             var fitnessStat = await _fitnessRepository.Query()
-                .FirstOrDefaultAsync(f => f.WeightGoalActivityId == existingwga.Id, cancellationToken);
+                .FirstOrDefaultAsync(f => f.Id == existingwga.Id, cancellationToken);
 
             if (fitnessStat == null)
             {
                 fitnessStat = new UserFitnessStatdb
                 {
                     Id = Guid.NewGuid(),
-                    WeightGoalActivityId = existingwga.Id
+                    weightGoalActivityId = existingwga.Id
                 };
                 await _fitnessRepository.AddAsync(fitnessStat);
             }
@@ -98,9 +98,9 @@ namespace FitnessCalculationService.Features.WeightGoalActivity.Comands
             fitnessStat.Status = status;
             fitnessStat.InsertDate = DateTime.UtcNow;
 
-             _fitnessRepository.SaveInclude(fitnessStat);
+            _fitnessRepository.SaveInclude(fitnessStat);
 
-           
+
 
 
 

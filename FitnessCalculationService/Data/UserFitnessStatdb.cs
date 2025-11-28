@@ -8,7 +8,7 @@
 
         public Guid UserId { get; set; }
 
-        public int weightGoalActivityId { get; set; }
+        public Guid weightGoalActivityId { get; set; }
 
         public decimal Bmr { get; set; }
 
