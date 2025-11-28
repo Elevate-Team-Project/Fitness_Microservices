@@ -16,6 +16,18 @@ services:
       - sql_data:/var/opt/mssql
 
   # ==========================================
+  # ✅ ADDED: Message Broker (RabbitMQ)
+  # ==========================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: fitness_rabbitmq
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI port
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq # To persist queues
+
+  # ==========================================
   # 2. Workout Service
   # ==========================================
   workoutservice:
@@ -26,8 +38,11 @@ services:
     ports:
       - "8080:8080"  # HTTP
       - "8081:8081"  # HTTPS
+    environment:
+      - RabbitMq:Host=rabbitmq # ✅ Inject RabbitMQ Hostname
     depends_on:
       - sqlserver
+      - rabbitmq # ✅ Wait for RabbitMQ to start
 
   # ==========================================
   # 3. Nutrition Service
@@ -118,3 +133,4 @@ services:
 
 volumes:
   sql_data:
+  rabbitmq_data: # ✅ Add volume for RabbitMQ persistence

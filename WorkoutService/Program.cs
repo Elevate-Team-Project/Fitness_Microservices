@@ -1,7 +1,7 @@
 ﻿using Mapster;
 using MapsterMapper;
 using MediatR;
-using MassTransit; // ✅ 1. Add this namespace
+using MassTransit; // ✅ Required namespace
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -102,8 +102,12 @@ public class Program
 
                 x.UsingRabbitMq((context, cfg) =>
                 {
-                    // Configure Connection to RabbitMQ
-                    cfg.Host("localhost", "/", h =>
+                    // ✅ DYNAMIC CONFIGURATION:
+                    // Try to get the RabbitMQ host from configuration (e.g., Environment Variable in Docker).
+                    // If not found (e.g., running locally), default to "localhost".
+                    var rabbitMqHost = config["RabbitMq:Host"] ?? "localhost";
+
+                    cfg.Host(rabbitMqHost, "/", h =>
                     {
                         h.Username("guest");
                         h.Password("guest");
