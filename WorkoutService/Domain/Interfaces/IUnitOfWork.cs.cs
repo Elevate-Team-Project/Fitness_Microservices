@@ -4,10 +4,12 @@ namespace WorkoutService.Domain.Interfaces
 {
     public interface IUnitOfWork : IDisposable
     {
-        Task<int> CompleteAsync();
-        int Complete();
-        Task<int> SaveAsync();
+        // Transaction Methods
+        Task<int> SaveChangesAsync(CancellationToken cancellationToken);
         Task<int> SaveChangesAsync();
-        Task<IDbContextTransaction> BeginTransactionAsync();
+
+        Task BeginTransactionAsync();
+        Task CommitTransactionAsync();
+        Task RollbackTransactionAsync();
     }
 }

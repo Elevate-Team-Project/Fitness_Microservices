@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using MassTransit;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using WorkoutService.Domain.Entities; // Your correct namespace
 
@@ -8,6 +9,8 @@ namespace WorkoutService.Infrastructure.Data
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
+
+
         }
 
         public DbSet<Workout> Workouts { get; set; }
@@ -21,10 +24,13 @@ namespace WorkoutService.Infrastructure.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // --- THIS IS THE FIX ---
-            // We tell EF that Id (from BaseEntity) is the Primary Key by *not* calling HasKey.
-            // Instead, we create a UNIQUE INDEX on these columns to prevent duplicates.
+
+            modelBuilder.AddInboxStateEntity();
+            modelBuilder.AddOutboxMessageEntity();
+            modelBuilder.AddOutboxStateEntity();
+
             modelBuilder.Entity<WorkoutExercise>()
+
                 .HasIndex(we => new { we.WorkoutId, we.ExerciseId, we.Order })
                 .IsUnique();
             // --- END OF FIX ---

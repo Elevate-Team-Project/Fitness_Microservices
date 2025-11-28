@@ -2,7 +2,7 @@
 
 services:
   # ==========================================
-  # 1. The Shared SQL Server Container
+  # 1. Shared Database (SQL Server)
   # ==========================================
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -16,7 +16,19 @@ services:
       - sql_data:/var/opt/mssql
 
   # ==========================================
-  # 2. Workout Service (Port 8080)
+  # ✅ ADDED: Message Broker (RabbitMQ)
+  # ==========================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: fitness_rabbitmq
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI port
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq # To persist queues
+
+  # ==========================================
+  # 2. Workout Service
   # ==========================================
   workoutservice:
     image: ${DOCKER_REGISTRY-}workoutservice
@@ -24,13 +36,16 @@ services:
       context: .
       dockerfile: WorkoutService/Dockerfile
     ports:
-      - "8080:8080"
-      - "8081:8081"
+      - "8080:8080"  # HTTP
+      - "8081:8081"  # HTTPS
+    environment:
+      - RabbitMq:Host=rabbitmq # ✅ Inject RabbitMQ Hostname
     depends_on:
       - sqlserver
+      - rabbitmq # ✅ Wait for RabbitMQ to start
 
   # ==========================================
-  # 3. Nutrition Service (Port 8082)
+  # 3. Nutrition Service
   # ==========================================
   nutritionservice:
     image: ${DOCKER_REGISTRY-}nutritionservice
@@ -38,12 +53,13 @@ services:
       context: .
       dockerfile: NutritionService/Dockerfile
     ports:
-      - "8082:8080"
+      - "8082:8080"  # HTTP
+      - "8083:8081"  # HTTPS (New)
     depends_on:
       - sqlserver
 
   # ==========================================
-  # 4. Fitness Calculation Service (Port 8084)
+  # 4. Fitness Calculation Service
   # ==========================================
   fitnesscalculationservice:
     image: ${DOCKER_REGISTRY-}fitnesscalculationservice
@@ -51,12 +67,13 @@ services:
       context: .
       dockerfile: FitnessCalculationService/Dockerfile
     ports:
-      - "8084:8080"
+      - "8084:8080"  # HTTP
+      - "8085:8081"  # HTTPS (New)
     depends_on:
       - sqlserver
 
   # ==========================================
-  # 5. Progress Tracking Service (Port 8086)
+  # 5. Progress Tracking Service
   # ==========================================
   progresstrackingservice:
     image: ${DOCKER_REGISTRY-}progresstrackingservice
@@ -64,12 +81,13 @@ services:
       context: .
       dockerfile: ProgressTrackingService/Dockerfile
     ports:
-      - "8086:8080"
+      - "8086:8080"  # HTTP
+      - "8087:8081"  # HTTPS (New)
     depends_on:
       - sqlserver
 
   # ==========================================
-  # 6. API Gateway (Port 8088)
+  # 6. API Gateway
   # ==========================================
   fitnessapigateway:
     image: ${DOCKER_REGISTRY-}fitnessapigateway
@@ -77,14 +95,15 @@ services:
       context: .
       dockerfile: FitnessAPIGateway/Dockerfile
     ports:
-      - "8088:8080"
+      - "8088:8080"  # HTTP
+      - "8089:8081"  # HTTPS (New)
     depends_on:
       - workoutservice
       - nutritionservice
-      - authenticationservice # Added dependency
+      - authenticationservice
 
   # ==========================================
-  # 7. Authentication Service (Port 8090) ✅ NEW
+  # 7. Authentication Service
   # ==========================================
   authenticationservice:
     image: ${DOCKER_REGISTRY-}authenticationservice
@@ -92,9 +111,26 @@ services:
       context: .
       dockerfile: AuthenticationService/Dockerfile
     ports:
-      - "8090:8080"
+      - "8090:8080"  # HTTP
+      - "8091:8081"  # HTTPS (New)
+    depends_on:
+      - sqlserver
+
+
+  # ==========================================
+  # 9. Smart Coach Service
+  # ==========================================
+  smartcoachservice:
+    image: ${DOCKER_REGISTRY-}smartcoachservice
+    build:
+      context: .
+      dockerfile: SmartCoachService/Dockerfile
+    ports:
+      - "8094:8080"  # HTTP
+      - "8095:8081"  # HTTPS (New)
     depends_on:
       - sqlserver
 
 volumes:
   sql_data:
+  rabbitmq_data: # ✅ Add volume for RabbitMQ persistence

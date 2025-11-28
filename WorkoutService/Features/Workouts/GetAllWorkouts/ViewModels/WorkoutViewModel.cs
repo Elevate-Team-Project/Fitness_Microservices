@@ -1,4 +1,4 @@
-namespace WorkoutService.Features.Workouts.GetAllWorkouts.ViewModels
+﻿namespace WorkoutService.Features.Workouts.GetAllWorkouts.ViewModels
 {
     public class WorkoutViewModel
     {
@@ -15,7 +15,7 @@ namespace WorkoutService.Features.Workouts.GetAllWorkouts.ViewModels
         public string VideoUrl { get; set; }
         public List<string> EquipmentNeeded { get; set; }
         public bool IsPremium { get; set; }
-        public double Rating { get; set; }
-        public int TotalRatings { get; set; }
+        public double? Rating { get; set; }
+        public int? TotalRatings { get; set; }
     }
 }

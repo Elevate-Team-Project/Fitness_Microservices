@@ -1,6 +1,8 @@
 {
   "Routes": [
-    // Authentication Service Routes
+    // ==========================================
+    // 1. Authentication Service
+    // ==========================================
     {
       "DownstreamPathTemplate": "/api/auth/{everything}",
       "DownstreamScheme": "http",
@@ -13,7 +15,11 @@
       "UpstreamPathTemplate": "/api/auth/{everything}",
       "UpstreamHttpMethod": [ "POST", "GET" ]
     },
-    // User Profile Service Routes
+
+    // ==========================================
+    // 2. User Profile Service
+    // (تأكد أنك أضفت هذه الخدمة في docker-compose إذا كانت موجودة)
+    // ==========================================
     {
       "DownstreamPathTemplate": "/api/profile/{everything}",
       "DownstreamScheme": "http",
@@ -30,7 +36,10 @@
         "AllowedScopes": []
       }
     },
-    // Workout Service Routes
+
+    // ==========================================
+    // 3. Workout Service
+    // ==========================================
     {
       "DownstreamPathTemplate": "/api/workouts/{everything}",
       "DownstreamScheme": "http",
@@ -47,7 +56,10 @@
         "AllowedScopes": []
       }
     },
-    // Nutrition Service Routes
+
+    // ==========================================
+    // 4. Nutrition Service
+    // ==========================================
     {
       "DownstreamPathTemplate": "/api/nutrition/{everything}",
       "DownstreamScheme": "http",
@@ -64,7 +76,10 @@
         "AllowedScopes": []
       }
     },
-    // Progress Tracking Service Routes
+
+    // ==========================================
+    // 5. Progress Tracking Service
+    // ==========================================
     {
       "DownstreamPathTemplate": "/api/progress/{everything}",
       "DownstreamScheme": "http",
@@ -81,7 +96,10 @@
         "AllowedScopes": []
       }
     },
-    // Fitness Calculation Service Routes
+
+    // ==========================================
+    // 6. Fitness Calculation Service
+    // ==========================================
     {
       "DownstreamPathTemplate": "/api/fitness-calculator/{everything}",
       "DownstreamScheme": "http",
@@ -98,7 +116,11 @@
         "AllowedScopes": []
       }
     },
-    // Smart Coach Service Routes
+
+    // ==========================================
+    // 7. Smart Coach Service
+    // (تأكد أنك أضفت هذه الخدمة في docker-compose إذا كانت موجودة)
+    // ==========================================
     {
       "DownstreamPathTemplate": "/api/smart-coach/{everything}",
       "DownstreamScheme": "http",
@@ -117,7 +139,7 @@
     }
   ],
   "GlobalConfiguration": {
-    "BaseUrl": "http://localhost:5000",
+    "BaseUrl": "http://localhost:8088",
     "RateLimitOptions": {
       "EnableRateLimiting": true,
       "Period": "1s",

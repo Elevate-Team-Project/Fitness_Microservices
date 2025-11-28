@@ -1,6 +1,7 @@
 ﻿using Mapster;
 using MapsterMapper;
 using MediatR;
+using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -15,13 +16,18 @@ using WorkoutService.Features;
 using WorkoutService.Infrastructure;
 using WorkoutService.Infrastructure.Data;
 using WorkoutService.Infrastructure.UnitOfWork;
+using WorkoutService.MiddleWares;
+using LinqKit;
+using WorkoutService.Features.Consumers;
+using WorkoutService.Infrastructure.Services;
 
-// Change Main signature to be async
 public class Program
 {
-    public static async Task Main(string[] args) // Changed to async Task
+    public static async Task Main(string[] args)
     {
-        // Serilog setup
+        // -------------------------------------------------------------------------------------
+        // 1. Serilog Configuration
+        // -------------------------------------------------------------------------------------
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Information()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
@@ -36,19 +42,31 @@ public class Program
 
         try
         {
-            Log.Information("Starting WorkoutService");
+            Log.Information("Starting WorkoutService Application");
 
             var builder = WebApplication.CreateBuilder(args);
+
             builder.Host.UseSerilog();
 
             var config = builder.Configuration;
 
-            // 1. Add Services to the container
+            // -------------------------------------------------------------------------------------
+            // 2. Service Registration (Dependency Injection)
+            // -------------------------------------------------------------------------------------
 
-            // Add DBContext for SQL Server
-            builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            builder.Services.AddMemoryCache();
+            builder.Services.AddHttpContextAccessor();
+
+            builder.Services.AddScoped<TransactionMiddleware>();
+            builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+            // Configure Entity Framework Core with SQL Server and Connection Pooling
+            builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
             {
-                options.UseSqlServer(config.GetConnectionString("DefaultConnection"));
+                options.UseSqlServer(config.GetConnectionString("DefaultConnection"))
+                       .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+                       .WithExpressionExpanding();
+
                 if (builder.Environment.IsDevelopment())
                 {
                     options.EnableSensitiveDataLogging(true);
@@ -56,10 +74,9 @@ public class Program
                 }
             });
 
-            // Register Unit of Work
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            // Register Generic Repositories for all classes inheriting from BaseEntity
+            // Generic Repository Registration
             var entityTypes = Assembly.GetExecutingAssembly()
                 .GetTypes()
                 .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(BaseEntity)))
@@ -72,31 +89,64 @@ public class Program
                 builder.Services.AddScoped(interfaceType, implementationType);
             }
 
-            Log.Information("Registered {Count} generic repositories for entities: {Entities}",
-                entityTypes.Count,
-                string.Join(", ", entityTypes.Select(t => t.Name)));
+            Log.Information("Registered {Count} generic repositories successfully", entityTypes.Count);
 
-            // Add MediatR
             builder.Services.AddMediatR(typeof(Program).Assembly);
 
-            // Add Mapster
             var typeAdapterConfig = TypeAdapterConfig.GlobalSettings;
             typeAdapterConfig.Scan(Assembly.GetExecutingAssembly());
             builder.Services.AddSingleton(typeAdapterConfig);
 
-            // ---------------------------------------------------------
-            // ✅ 1. إضافة خدمة الـ CORS (مهم جداً عشان المتصفح)
-            // ---------------------------------------------------------
+            // -------------------------------------------------------------------------------------
+            // MassTransit Configuration (RabbitMQ + Outbox Pattern)
+            // -------------------------------------------------------------------------------------
+            builder.Services.AddMassTransit(x =>
+            {
+                x.AddConsumer<WorkoutCreatedConsumer>();
+                x.AddConsumer<WorkoutSessionStartedConsumer>();
+
+                // ---------------------------------------------------------------------
+                // CRITICAL: Configure Transactional Outbox
+                // ---------------------------------------------------------------------
+                // This ensures messages are saved to the DB within the same transaction
+                // as the business data, preventing data inconsistency/ghost messages.
+                x.AddEntityFrameworkOutbox<ApplicationDbContext>(o =>
+                {
+                    // Configures the lock statement provider for SQL Server
+                    o.UseSqlServer();
+
+                    // Tells MassTransit to intercept 'Publish' and 'Send' calls and
+                    // write them to the Outbox table instead of sending immediately.
+                    o.UseBusOutbox();
+                });
+
+                x.UsingRabbitMq((context, cfg) =>
+                {
+                    var rabbitMqHost = config["RabbitMq:Host"] ?? "localhost";
+
+                    cfg.Host(rabbitMqHost, "/", h =>
+                    {
+                        h.Username("guest");
+                        h.Password("guest");
+                    });
+
+                    cfg.ConfigureEndpoints(context);
+                });
+            });
+
+            // -------------------------------------------------------------------------------------
+            // API Security & Configuration
+            // -------------------------------------------------------------------------------------
+
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll",
                     b => b.AllowAnyMethod()
                     .AllowAnyHeader()
-                    .SetIsOriginAllowed(origin => true) // allow any origin
+                    .SetIsOriginAllowed(origin => true)
                     .AllowCredentials());
             });
 
-            // Add Authentication (validates JWT tokens)
             builder.Services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -118,11 +168,11 @@ public class Program
 
             builder.Services.AddAuthorization();
 
-            // Add Swagger/OpenAPI with JWT support
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new OpenApiInfo { Title = "WorkoutService API", Version = "v1" });
+
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     In = ParameterLocation.Header,
@@ -137,11 +187,7 @@ public class Program
                     {
                         new OpenApiSecurityScheme
                         {
-                            Reference = new OpenApiReference
-                            {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "Bearer"
-                            }
+                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
                         },
                         new string[] {}
                     }
@@ -150,64 +196,53 @@ public class Program
 
             var app = builder.Build();
 
-            // 2. Configure the HTTP request pipeline
-
-            // --- Database Migration and Seeding ---
+            // -------------------------------------------------------------------------------------
+            // 3. Database Migration & Seeding (Startup Scope)
+            // -------------------------------------------------------------------------------------
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
                 try
                 {
-                    Log.Information("📊 Starting database migration...");
                     var context = services.GetRequiredService<ApplicationDbContext>();
-
-                    // Apply pending migrations
                     await context.Database.MigrateAsync();
-                    Log.Information("✅ Database migration completed.");
-
-                    // Seed the database
-                    Log.Information("🌱 Starting database seeding...");
                     await DatabaseSeeder.SeedAsync(services);
-                    Log.Information("🌱 Database seeding completed successfully.");
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "❌ An error occurred while migrating or seeding the database.");
-                    if (app.Environment.IsDevelopment())
-                    {
-                        // In Docker, sometimes it's better NOT to throw here to keep the container alive for inspection
-                        throw;
-                    }
+                    Log.Error(ex, "Error occurred during database migration or seeding");
+                    if (app.Environment.IsDevelopment()) throw;
                 }
             }
-            // --- END OF NEW BLOCK ---
+
+            // -------------------------------------------------------------------------------------
+            // 4. HTTP Request Pipeline (Middleware Order)
+            // -------------------------------------------------------------------------------------
+
+            app.UseMiddleware<ErrorHandlingMiddleware>();
 
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-                app.UseDeveloperExceptionPage();
             }
 
             app.UseHttpsRedirection();
 
-            // ---------------------------------------------------------
-            // ✅ 2. تفعيل الـ CORS (لازم يكون قبل الـ Authentication)
-            // ---------------------------------------------------------
             app.UseCors("AllowAll");
 
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // 3. Map all endpoints
+            app.UseMiddleware<TransactionMiddleware>();
+
             app.MapAllEndpoints();
 
-            // 4. Run the application
             await app.RunAsync();
         }
         catch (Exception ex)
         {
-            Log.Fatal(ex, "Application failed to start");
+            Log.Fatal(ex, "Application failed to start due to an unhandled exception");
         }
         finally
         {

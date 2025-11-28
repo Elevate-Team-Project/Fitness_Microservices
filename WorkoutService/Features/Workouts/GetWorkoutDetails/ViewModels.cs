@@ -14,7 +14,7 @@ namespace WorkoutService.Features.Workouts.GetWorkoutDetails.ViewModels
         public string VideoUrl { get; set; }
         public List<string> EquipmentNeeded { get; set; }
         public bool IsPremium { get; set; }
-        public double Rating { get; set; }
+        public double? Rating { get; set; }
         public int TotalRatings { get; set; }
         public DateTime CreatedAt { get; set; }
         public List<ExerciseViewModel> Exercises { get; set; }

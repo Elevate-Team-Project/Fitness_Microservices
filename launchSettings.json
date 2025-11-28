@@ -4,7 +4,12 @@
       "commandName": "DockerCompose",
       "commandVersion": "1.0",
       "serviceActions": {
-        "workoutservice": "StartDebugging"
+        "fitnessapigateway": "StartDebugging",
+        "workoutservice": "StartDebugging",
+        "nutritionservice": "StartDebugging",
+        "authenticationservice": "StartDebugging",
+        "fitnesscalculationservice": "StartDebugging",
+        "progresstrackingservice": "StartDebugging"
       }
     }
   }

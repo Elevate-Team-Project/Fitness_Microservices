@@ -1,6 +1,7 @@
-using Mapster;
+﻿using LinqKit;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using WorkoutService.Domain.Entities;
 using WorkoutService.Domain.Interfaces;
 using WorkoutService.Features.Shared;
@@ -11,45 +12,71 @@ namespace WorkoutService.Features.Workouts.GetAllWorkouts
     public class GetAllWorkoutsHandler : IRequestHandler<GetAllWorkoutsQuery, RequestResponse<PaginatedResult<WorkoutViewModel>>>
     {
         private readonly IBaseRepository<Workout> _workoutRepository;
+        private readonly IMemoryCache _cache;
 
-        public GetAllWorkoutsHandler(IBaseRepository<Workout> workoutRepository)
+        public GetAllWorkoutsHandler(IBaseRepository<Workout> workoutRepository, IMemoryCache cache)
         {
             _workoutRepository = workoutRepository;
+            _cache = cache;
         }
 
         public async Task<RequestResponse<PaginatedResult<WorkoutViewModel>>> Handle(GetAllWorkoutsQuery request, CancellationToken cancellationToken)
         {
-            var query = _workoutRepository.GetAll();
+            var cacheKey = $"Workouts_Pg{request.Page}_Sz{request.PageSize}_Cat{request.Category}_Dif{request.Difficulty}_Dur{request.Duration}_Ser{request.Search}";
 
-            if (!string.IsNullOrEmpty(request.Category))
+            var paginatedResult = await _cache.GetOrCreateAsync(cacheKey, async entry =>
             {
-                query = query.Where(w => w.Category == request.Category);
-            }
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+                entry.SlidingExpiration = TimeSpan.FromMinutes(2);
 
-            if (!string.IsNullOrEmpty(request.Difficulty))
-            {
-                query = query.Where(w => w.Difficulty == request.Difficulty);
-            }
+                var predicate = PredicateBuilder.New<Workout>(true);
 
-            if (request.Duration.HasValue)
-            {
-                query = query.Where(w => w.DurationInMinutes == request.Duration.Value);
-            }
+                if (!string.IsNullOrEmpty(request.Category))
+                {
+                    predicate.And(w => w.Category == request.Category);
+                }
 
-            if (!string.IsNullOrEmpty(request.Search))
-            {
-                query = query.Where(w => w.Name.Contains(request.Search) || w.Description.Contains(request.Search));
-            }
+                if (!string.IsNullOrEmpty(request.Difficulty))
+                {
+                    predicate.And(w => w.Difficulty == request.Difficulty);
+                }
 
-            var totalCount = await query.CountAsync(cancellationToken);
+                if (request.Duration.HasValue)
+                {
+                    predicate.And(w => w.DurationInMinutes == request.Duration.Value);
+                }
 
-            var workouts = await query
-                .Skip((request.Page - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToListAsync(cancellationToken);
+                if (!string.IsNullOrEmpty(request.Search))
+                {
+                    predicate.And(w => w.Name.Contains(request.Search) || w.Description.Contains(request.Search));
+                }
 
-            var workoutVms = workouts.Adapt<List<WorkoutViewModel>>();
-            var paginatedResult = new PaginatedResult<WorkoutViewModel>(workoutVms, totalCount, request.Page, request.PageSize);
+                var query = _workoutRepository.Get(predicate).AsNoTracking();
+
+                var pagedQuery = query.Select(w => new WorkoutViewModel
+                {
+                    Id = w.Id,
+                    Name = w.Name,
+                    Category = w.Category,
+                    Difficulty = w.Difficulty,
+                    Duration = w.DurationInMinutes,
+                    CaloriesBurn = w.CaloriesBurn,
+                    ExerciseCount = w.WorkoutExercises.Count(),
+                    IsPremium = w.IsPremium,
+                    Rating = w.Rating,
+                    Description = w.Description,
+                    TotalRatings = w.TotalRatings
+                });
+
+                var totalCount = await query.CountAsync(cancellationToken);
+
+                var workoutVms = await pagedQuery
+                    .Skip((request.Page - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToListAsync(cancellationToken);
+
+                return new PaginatedResult<WorkoutViewModel>(workoutVms, totalCount, request.Page, request.PageSize);
+            });
 
             return RequestResponse<PaginatedResult<WorkoutViewModel>>.Success(paginatedResult, "Workouts fetched successfully");
         }

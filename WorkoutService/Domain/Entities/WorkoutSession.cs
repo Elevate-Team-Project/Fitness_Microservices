@@ -5,7 +5,7 @@ namespace WorkoutService.Domain.Entities
 {
     public class WorkoutSession : BaseEntity
     {
-        public Guid UserId { get; set; } // Assuming user ID is a Guid
+        public Guid UserId { get; set; } 
         public int WorkoutId { get; set; }
         public Workout Workout { get; set; }
         public string Status { get; set; } // e.g., "InProgress", "Completed"

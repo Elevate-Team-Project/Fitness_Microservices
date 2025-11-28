@@ -18,7 +18,7 @@ namespace WorkoutService.Features.WorkoutPlans.GetAllWorkoutPlans
 
         public async Task<PaginatedWorkoutPlansVm> Handle(GetAllWorkoutPlansQuery request, CancellationToken cancellationToken)
         {
-            var workoutPlans = await _workoutPlanRepository.GetAllAsync();
+            var workoutPlans =  _workoutPlanRepository.GetAll();
             var workoutPlanVms = workoutPlans.Adapt<List<WorkoutPlanVm>>();
             return new PaginatedWorkoutPlansVm(workoutPlanVms);
         }

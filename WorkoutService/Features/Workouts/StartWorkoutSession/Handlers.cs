@@ -1,63 +1,70 @@
-using Mapster;
+﻿using Mapster;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
-using WorkoutService.Domain.Entities;
-using WorkoutService.Domain.Interfaces;
+using MassTransit; // ✅ Required for Messaging
+using WorkoutService.Contracts; // ✅ Required for Contracts
 using WorkoutService.Features.Shared;
 using WorkoutService.Features.Workouts.StartWorkoutSession.ViewModels;
-using WorkoutService.Infrastructure.Data;
+using WorkoutService.Domain.Interfaces; // ✅ Required for ICurrentUserService
 
 namespace WorkoutService.Features.Workouts.StartWorkoutSession
 {
     public class StartWorkoutSessionCommandHandler : IRequestHandler<StartWorkoutSessionCommand, RequestResponse<WorkoutSessionViewModel>>
     {
-        private readonly IBaseRepository<Workout> _workoutRepository;
-        private readonly IBaseRepository<WorkoutSession> _workoutSessionRepository;
-        private readonly ApplicationDbContext _context;
+        private readonly IPublishEndpoint _publishEndpoint;
+        private readonly ICurrentUserService _currentUserService; // ✅ 1. Inject CurrentUserService
 
-        public StartWorkoutSessionCommandHandler(IBaseRepository<Workout> workoutRepository, IBaseRepository<WorkoutSession> workoutSessionRepository, ApplicationDbContext context)
+        // ✅ Lightweight Constructor: MassTransit + User Service only
+        public StartWorkoutSessionCommandHandler(
+            IPublishEndpoint publishEndpoint,
+            ICurrentUserService currentUserService)
         {
-            _workoutRepository = workoutRepository;
-            _workoutSessionRepository = workoutSessionRepository;
-            _context = context;
+            _publishEndpoint = publishEndpoint;
+            _currentUserService = currentUserService;
         }
 
         public async Task<RequestResponse<WorkoutSessionViewModel>> Handle(StartWorkoutSessionCommand request, CancellationToken cancellationToken)
         {
-            var workout = await _workoutRepository.GetAll()
-                .Include(w => w.WorkoutExercises)
-                .FirstOrDefaultAsync(w => w.Id == request.WorkoutId, cancellationToken);
-
-            if (workout == null)
+            // ✅ 2. Security Check: Validate User is Authenticated
+            if (!_currentUserService.IsAuthenticated || string.IsNullOrEmpty(_currentUserService.UserId))
             {
-                return RequestResponse<WorkoutSessionViewModel>.Fail("Workout not found");
+                // 401 Unauthorized
+                return RequestResponse<WorkoutSessionViewModel>.Fail("User is not authenticated");
             }
 
-            var session = new WorkoutSession
+            // ✅ 3. Parse User ID from Token (Assuming Auth Service provides Guid)
+            if (!Guid.TryParse(_currentUserService.UserId, out var userId))
             {
-                UserId = Guid.NewGuid(), // Mocking user ID for now
-                WorkoutId = workout.Id,
-                Status = "InProgress",
-                StartedAt = DateTime.UtcNow,
-                PlannedDurationInMinutes = request.Dto.PlannedDuration,
-                Difficulty = request.Dto.Difficulty
+                // 400 Bad Request if ID format is wrong
+                return RequestResponse<WorkoutSessionViewModel>.Fail("Invalid User ID format in token");
+            }
+
+            // 4. Prepare Data
+            var startedAt = DateTime.UtcNow;
+
+            // 5. Publish "Fire-and-Forget" Event with REAL User ID
+            await _publishEndpoint.Publish<IWorkoutSessionStarted>(new
+            {
+                WorkoutId = request.WorkoutId,
+                UserId = userId, // ✅ Using the real User ID from Token
+                PlannedDurationMinutes = request.Dto.PlannedDuration,
+                Difficulty = request.Dto.Difficulty,
+                StartedAt = startedAt
+            }, cancellationToken);
+
+            // 6. Return Provisional Response
+            var responseVm = new WorkoutSessionViewModel
+            {
+                SessionId = "0", // Indicates Pending Creation
+                WorkoutId = request.WorkoutId,
+                WorkoutName = "Processing...", // Placeholder
+                status = "InProgress",
+                PlannedDuration = request.Dto.PlannedDuration,
+                Difficulty = request.Dto.Difficulty,
+                StartedAt = startedAt,
+                Exercises = new List<SessionExerciseViewModel>()
             };
 
-            var sessionExercises = workout.WorkoutExercises.Select(e => new WorkoutSessionExercise
-            {
-                ExerciseId = e.Id,
-                Status = "Pending",
-                Order = e.Order
-            }).ToList();
-
-            session.SessionExercises = sessionExercises;
-
-            await _workoutSessionRepository.AddAsync(session);
-            await _context.SaveChangesAsync(cancellationToken);
-
-            var sessionVm = session.Adapt<WorkoutSessionViewModel>();
-
-            return RequestResponse<WorkoutSessionViewModel>.Success(sessionVm, "Workout session started");
+            return RequestResponse<WorkoutSessionViewModel>.Success(responseVm, "Workout session start request queued successfully.");
         }
     }
 }

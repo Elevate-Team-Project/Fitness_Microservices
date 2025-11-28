@@ -1,0 +1,46 @@
+﻿name: .NET CI Pipeline
+
+# Triggers: Defines when this pipeline runs
+on:
+  push:
+    branches: [ "master", "main" ] # Runs on push to master/main
+  pull_request:
+    branches: [ "master", "main" ] # Runs on PR to master/main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest # The Virtual Machine environment
+
+    steps:
+    # 1. Checkout the code from the repository
+    - uses: actions/checkout@v4
+
+    # 2. Setup .NET 8 SDK
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    # 3. Restore Dependencies
+    # Gate 1: Fails if NuGet packages are missing or incompatible
+    - name: Restore dependencies
+      run: dotnet restore ./WorkoutService/WorkoutService.csproj
+
+    # 4. Build (Compilation)
+    # Gate 2: Fails on Syntax Errors (e.g., missing semicolon) or compilation issues
+    # If this fails, the pipeline STOPS here 🛑
+    - name: Build
+      run: dotnet build --no-restore --configuration Release ./WorkoutService/WorkoutService.csproj
+
+    # 5. Run Tests (Optional - Currently Commented Out)
+    # Gate 3: Fails if any Unit Test fails (Logic Bugs)
+    # Note: Uncomment when you add a Test Project
+    # - name: Test
+    #   run: dotnet test --no-build --verbosity normal ./WorkoutService.Tests/WorkoutService.Tests.csproj
+
+    # 6. Docker Build (The Final Reward)
+    # This step ONLY executes if all previous steps (Restore, Build, Test) succeeded ✅
+    - name: Build Docker Image
+      run: |
+        docker build -t workoutservice:latest -f WorkoutService/Dockerfile .
+        echo "✅ Docker Image Built Successfully because no errors were found!"
