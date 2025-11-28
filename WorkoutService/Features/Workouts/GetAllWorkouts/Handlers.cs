@@ -48,7 +48,7 @@ namespace WorkoutService.Features.Workouts.GetAllWorkouts
             var query = _workoutRepository.Get(predicate)
                 .AsNoTracking(); // ✅ Important: No tracking overhead
 
-            // 4. Projection 
+            // 4. Projection to Struct (Zero Allocation for the wrapper object)
             var pagedQuery = query
                 .Select(w => new WorkoutViewModel
                 {
