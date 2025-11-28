@@ -28,8 +28,6 @@ public class Program
         // -------------------------------------------------------------------------------------
         // 1. Serilog Configuration
         // -------------------------------------------------------------------------------------
-        // Configure structured logging to output logs to both Console and File.
-        // We override minimum levels for system namespaces to reduce noise in the logs.
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Information()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
@@ -48,7 +46,6 @@ public class Program
 
             var builder = WebApplication.CreateBuilder(args);
 
-            // Replace the default logging provider with Serilog
             builder.Host.UseSerilog();
 
             var config = builder.Configuration;
@@ -57,23 +54,19 @@ public class Program
             // 2. Service Registration (Dependency Injection)
             // -------------------------------------------------------------------------------------
 
-            // Core Services
-            builder.Services.AddMemoryCache(); // Used for caching query results
-            builder.Services.AddHttpContextAccessor(); // Allows access to HTTP Context (User Identity)
+            builder.Services.AddMemoryCache();
+            builder.Services.AddHttpContextAccessor();
 
-            // Application Services & Middleware
-            builder.Services.AddScoped<TransactionMiddleware>(); // Manages database transactions per request
-            builder.Services.AddScoped<ICurrentUserService, CurrentUserService>(); // Abstraction for retrieving the current user ID
+            builder.Services.AddScoped<TransactionMiddleware>();
+            builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
-            // Database Context Configuration
-            // We use AddDbContextPool to recycle context instances for better performance.
+            // Configure Entity Framework Core with SQL Server and Connection Pooling
             builder.Services.AddDbContextPool<ApplicationDbContext>(options =>
             {
                 options.UseSqlServer(config.GetConnectionString("DefaultConnection"))
-                       .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking) // Optimization for read-heavy workloads
-                       .WithExpressionExpanding(); // Enables LinqKit for dynamic predicate building
+                       .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+                       .WithExpressionExpanding();
 
-                // Enable detailed logging only in development environment for debugging
                 if (builder.Environment.IsDevelopment())
                 {
                     options.EnableSensitiveDataLogging(true);
@@ -81,11 +74,9 @@ public class Program
                 }
             });
 
-            // Unit of Work Registration
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Generic Repository Registration
-            // Scans the assembly for all entities inheriting from BaseEntity and registers their repositories automatically.
             var entityTypes = Assembly.GetExecutingAssembly()
                 .GetTypes()
                 .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(BaseEntity)))
@@ -100,27 +91,37 @@ public class Program
 
             Log.Information("Registered {Count} generic repositories successfully", entityTypes.Count);
 
-            // MediatR Configuration (CQRS Pattern)
             builder.Services.AddMediatR(typeof(Program).Assembly);
 
-            // Mapster Configuration (Object Mapping)
             var typeAdapterConfig = TypeAdapterConfig.GlobalSettings;
             typeAdapterConfig.Scan(Assembly.GetExecutingAssembly());
             builder.Services.AddSingleton(typeAdapterConfig);
 
             // -------------------------------------------------------------------------------------
-            // MassTransit & RabbitMQ Configuration
+            // MassTransit Configuration (RabbitMQ + Outbox Pattern)
             // -------------------------------------------------------------------------------------
             builder.Services.AddMassTransit(x =>
             {
-                // Register Consumers: These classes handle incoming messages from the message broker
                 x.AddConsumer<WorkoutCreatedConsumer>();
                 x.AddConsumer<WorkoutSessionStartedConsumer>();
 
-                // Configure RabbitMQ Transport
+                // ---------------------------------------------------------------------
+                // CRITICAL: Configure Transactional Outbox
+                // ---------------------------------------------------------------------
+                // This ensures messages are saved to the DB within the same transaction
+                // as the business data, preventing data inconsistency/ghost messages.
+                x.AddEntityFrameworkOutbox<ApplicationDbContext>(o =>
+                {
+                    // Configures the lock statement provider for SQL Server
+                    o.UseSqlServer();
+
+                    // Tells MassTransit to intercept 'Publish' and 'Send' calls and
+                    // write them to the Outbox table instead of sending immediately.
+                    o.UseBusOutbox();
+                });
+
                 x.UsingRabbitMq((context, cfg) =>
                 {
-                    // Resolve Hostname (supports Docker service name or localhost)
                     var rabbitMqHost = config["RabbitMq:Host"] ?? "localhost";
 
                     cfg.Host(rabbitMqHost, "/", h =>
@@ -129,7 +130,6 @@ public class Program
                         h.Password("guest");
                     });
 
-                    // Automatically create queues and bindings for registered consumers
                     cfg.ConfigureEndpoints(context);
                 });
             });
@@ -138,7 +138,6 @@ public class Program
             // API Security & Configuration
             // -------------------------------------------------------------------------------------
 
-            // CORS Policy
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll",
@@ -148,7 +147,6 @@ public class Program
                     .AllowCredentials());
             });
 
-            // JWT Authentication
             builder.Services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -170,13 +168,11 @@ public class Program
 
             builder.Services.AddAuthorization();
 
-            // Swagger / OpenAPI Configuration
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new OpenApiInfo { Title = "WorkoutService API", Version = "v1" });
 
-                // Configure JWT Bearer Authentication for Swagger UI
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     In = ParameterLocation.Header,
@@ -209,11 +205,7 @@ public class Program
                 try
                 {
                     var context = services.GetRequiredService<ApplicationDbContext>();
-
-                    // Apply pending migrations to the database
                     await context.Database.MigrateAsync();
-
-                    // Seed initial data if the database is empty
                     await DatabaseSeeder.SeedAsync(services);
                 }
                 catch (Exception ex)
@@ -227,7 +219,6 @@ public class Program
             // 4. HTTP Request Pipeline (Middleware Order)
             // -------------------------------------------------------------------------------------
 
-            // Global Error Handling: Must be the first middleware to catch exceptions from all subsequent layers
             app.UseMiddleware<ErrorHandlingMiddleware>();
 
             if (app.Environment.IsDevelopment())
@@ -238,20 +229,15 @@ public class Program
 
             app.UseHttpsRedirection();
 
-            // Enable Cross-Origin Resource Sharing
             app.UseCors("AllowAll");
 
-            // Enable Authentication & Authorization
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // Transaction Middleware: Handles DB transactions for Command requests
             app.UseMiddleware<TransactionMiddleware>();
 
-            // Map API Endpoints (Minimal APIs or Controllers)
             app.MapAllEndpoints();
 
-            // Start the application
             await app.RunAsync();
         }
         catch (Exception ex)
@@ -260,7 +246,6 @@ public class Program
         }
         finally
         {
-            // Ensure logs are flushed before shutdown
             Log.CloseAndFlush();
         }
     }
