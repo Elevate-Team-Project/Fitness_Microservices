@@ -1,34 +1,30 @@
 ﻿using MediatR;
-using MassTransit; // ✅ 1. Add MassTransit namespace
+using MassTransit;
 using WorkoutService.Features.Workouts.CreateWorkout.ViewModels;
-using WorkoutService.Domain.Interfaces;
-using WorkoutService.Domain.Entities;
-using WorkoutService.Contracts; // ✅ 2. Add Contracts namespace (Where IWorkoutCreated is defined)
+using WorkoutService.Contracts;
 
 namespace WorkoutService.Features.Workouts.CreateWorkout
 {
     public class CreateWorkoutHandler : IRequestHandler<CreateWorkoutCommand, WorkoutVm>
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IBaseRepository<Workout> _workoutRepository;
-        private readonly IPublishEndpoint _publishEndpoint; // ✅ 3. Add Publish Endpoint field
+        private readonly IPublishEndpoint _publishEndpoint;
 
-        // ✅ 4. Inject IPublishEndpoint in Constructor
-        public CreateWorkoutHandler(
-            IUnitOfWork unitOfWork,
-            IBaseRepository<Workout> workoutRepository,
-            IPublishEndpoint publishEndpoint)
+        // ✅ We only need IPublishEndpoint. No Repository/UnitOfWork needed here.
+        public CreateWorkoutHandler(IPublishEndpoint publishEndpoint)
         {
-            _unitOfWork = unitOfWork;
-            _workoutRepository = workoutRepository;
             _publishEndpoint = publishEndpoint;
         }
 
         public async Task<WorkoutVm> Handle(CreateWorkoutCommand request, CancellationToken cancellationToken)
         {
-            // TODO: Add mapping (Consider using Mapster here later)
-            var workout = new Workout
+            // 1. Prepare the payload
+            // Note: ID will be 0 here because DB hasn't generated it yet.
+            // If you need an ID reference, consider generating a Guid 'CorrelationId' to track this request.
+
+            await _publishEndpoint.Publish<IWorkoutCreated>(new
             {
+                // We send ALL data required for saving
+                WorkoutId = 0,
                 Name = request.Dto.Name,
                 Description = request.Dto.Description,
                 CaloriesBurn = request.Dto.CaloriesBurn,
@@ -37,23 +33,15 @@ namespace WorkoutService.Features.Workouts.CreateWorkout
                 DurationInMinutes = request.Dto.DurationInMinutes,
                 IsPremium = request.Dto.IsPremium,
                 Rating = 0.0,
-                CreatedAt = DateTime.UtcNow // Assuming you have this field
-            };
-            // ✅ 5. Publish the Event to RabbitMQ
-            // We use an anonymous object that matches the IWorkoutCreated interface properties.
-            await _publishEndpoint.Publish<IWorkoutCreated>(new
-            {
-                WorkoutId = workout.Id,
-                Name = workout.Name,
-                Description = workout.Description,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+
+                // IMPORTANT: You MUST pass the PlanId so the Consumer can link it
+                WorkoutPlanId = request.Dto.workoutPlanId
             }, cancellationToken);
 
-            await _workoutRepository.AddAsync(workout);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-
-            return new WorkoutVm(workout.Id, workout.Name, workout.Description);
+            // 2. Return Response
+            // Warning: The returned ID will be 0. The client must be aware of this.
+            return new WorkoutVm(0, request.Dto.Name, request.Dto.Description);
         }
     }
 }
