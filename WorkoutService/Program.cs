@@ -229,6 +229,6 @@ public class Program
         {
             Log.CloseAndFlush();
         }
-        
+        // End of Main
     }
 }
