@@ -44,6 +44,9 @@ namespace FitnessCalculationService.Features.WeightGoalActivity.Comands
 
             _wgarepository.SaveInclude(existingwga);
 
+
+            await _wgarepository.SaveChanges();
+
             double bmr = existingwga.Gender.ToUpper() switch
             {
                 "M" => 10 * existingwga.Weight + 6.25 * existingwga.Height - 5 * existingwga.Age + 5,
@@ -101,6 +104,7 @@ namespace FitnessCalculationService.Features.WeightGoalActivity.Comands
             _fitnessRepository.SaveInclude(fitnessStat);
 
 
+            await _fitnessRepository.SaveChanges();
 
 
 
