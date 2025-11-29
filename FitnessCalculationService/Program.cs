@@ -1,9 +1,8 @@
-using Fitness.Infrastructure.Services;
-using Fitness.Infrastructure;
-using Fitness.Infrastructure.Repositories;
+
 using MediatR;
 using Fitness.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using FitnessCalculationService.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

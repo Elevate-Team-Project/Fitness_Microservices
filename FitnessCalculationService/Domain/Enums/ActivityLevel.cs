@@ -1,4 +1,4 @@
-﻿namespace Fitness.Data.Enums
+﻿namespace FitnessCalculationService.Domain.Enums
 {
     public enum ActivityLevel
     {

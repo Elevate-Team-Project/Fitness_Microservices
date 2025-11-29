@@ -1,12 +1,12 @@
 ﻿using MediatR;
 using Fitness.Features.Dtos;
 using Fitness.Data;
-using Fitness.Infrastructure.Services;
 using System.Reflection.Metadata;
 using Fitness.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using FitnessCalculationService.Infrastructure.Services;
 
 
 

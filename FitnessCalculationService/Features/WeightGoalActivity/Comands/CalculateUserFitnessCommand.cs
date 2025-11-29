@@ -1,9 +1,9 @@
-﻿using Fitness.Data.Enums;
-using Fitness.Data;
+﻿using Fitness.Data;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Fitness.Api.Infrastructure.Persistence;
-using Fitness.Infrastructure.Services;
+using FitnessCalculationService.Domain.Enums;
+using FitnessCalculationService.Infrastructure.Services;
 
 public record CalculateUserFitnessCommand(Guid UserId) : IRequest<Guid>;
 
@@ -11,28 +11,37 @@ public class CalculateUserFitnessCommandHandler : IRequestHandler<CalculateUserF
 {
     private readonly ApplicationDbContext _context;
     private readonly IRepository<UserFitnessStatdb> _repo;
+    private readonly IRepository<WeightGoalActivitydb> _wgarepo;
+
     private readonly IConfiguration _configuration;
-    public CalculateUserFitnessCommandHandler(ApplicationDbContext context, IRepository<UserFitnessStatdb> repo, IConfiguration configuration)
+    public CalculateUserFitnessCommandHandler(IRepository<WeightGoalActivitydb>wgarepo,ApplicationDbContext context, IRepository<UserFitnessStatdb> repo, IConfiguration configuration)
     {
         _context = context;
+        _wgarepo = wgarepo;
         _repo = repo;
         _configuration = configuration;
     }
 
     public async Task<Guid> Handle(CalculateUserFitnessCommand request, CancellationToken cancellationToken)
     {
-        var profile = await _context.WeightGoalActivity
-            .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+
+
+
+      
+
+        var profile = await _wgarepo.FirstOrDefaultAsync(x => x.UserId == request.UserId);
 
         if (profile == null)
-            throw new Exception("User profile not found.");
+            throw new Exception("Profile not found.");
 
         double bmr = profile.Gender.ToUpper() switch
         {
             "M" => 10 * profile.Weight + 6.25 * profile.Height - 5 * profile.Age + 5,
             "F" => 10 * profile.Weight + 6.25 * profile.Height - 5 * profile.Age - 161,
-            _ => throw new Exception("Invalid gender value.")
+            _ => throw new Exception("Invalid gender.")
         };
+
+        
 
         double activityFactor = profile.ActivityLevel switch
         {

@@ -1,9 +1,8 @@
-
 using Fitness.Data;
 using Fitness.Features;
 using System.Linq.Expressions;
 
-namespace Fitness.Infrastructure.Services
+namespace FitnessCalculationService.Infrastructure.Services
 {
     public interface IRepository<T> where T : BaseEntity
     {

@@ -1,4 +1,4 @@
-﻿using Fitness.Data.Enums;
+﻿using FitnessCalculationService.Domain.Enums;
 
 namespace Fitness.Features.Dtos
 {

@@ -1,12 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Fitness.Features;
-using Fitness.Infrastructure.Services;
 using System.Linq.Expressions;
 using Fitness.Data;
 using Fitness.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
-namespace Fitness.Infrastructure.Repositories
+namespace FitnessCalculationService.Infrastructure.Services
 {
     public class Repository<T> : IRepository<T> where T : BaseEntity
     {

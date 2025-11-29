@@ -1,6 +1,6 @@
 ﻿using Fitness.Api.Infrastructure.Persistence;
 using Fitness.Data;
-using Fitness.Infrastructure.Services;
+using FitnessCalculationService.Infrastructure.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
