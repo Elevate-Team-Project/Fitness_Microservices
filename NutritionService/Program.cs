@@ -1,6 +1,8 @@
 ﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using NutritionService.Domain.Interfaces;
+using NutritionService.Features.Meals.AddMeal;
+using NutritionService.Features.Meals.DeleteMeal;
 using NutritionService.Features.Meals.GetMealDetails;
 using NutritionService.Features.Meals.GetMealRecommendations;
 using NutritionService.Infrastructure.Data;
@@ -83,6 +85,9 @@ namespace NutritionService
             // Endpoint Mapping
             app.MapGetMealRecommendationsEndpoint();
             app.MapGetMealDetailsEndpoint();
+            app.MapAddMealEndpoint();
+            app.MapDeleteMealEndpoint();
+
 
             // ✅ 5. Run Async
             await app.RunAsync();
