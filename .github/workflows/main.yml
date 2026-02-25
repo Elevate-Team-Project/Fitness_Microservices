@@ -49,8 +49,8 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-        context: .
-        file: ./WorkoutService/Dockerfile
+    # Adjust the path to the Dockerfile dynamically based on the matrix service
+        file: ./${{ matrix.service }}/Dockerfile
         push: true
         tags: |
           ${{ secrets.DOCKER_USERNAME }}/workout-service:latest
