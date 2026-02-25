@@ -1,6 +1,5 @@
-name: .NET CI and Docker Hub Push
+name: .NET Microservices CI/CD
 
-# Triggers: Runs when code is pushed or a PR is opened for main branches
 on:
   push:
     branches: [ "master", "main" ]
@@ -10,50 +9,47 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Define each service with its folder name and the desired image name
+        include:
+          - service_name: workout-service
+            dockerfile: WorkoutService/Dockerfile
+          - service_name: nutrition-service
+            dockerfile: NutritionService/Dockerfile
+          - service_name: auth-service
+            dockerfile: AuthenticationService/Dockerfile
+          - service_name: gateway-service
+            dockerfile: FitnessAPIGateway/Dockerfile
+          - service_name: fitness-calc-service
+            dockerfile: FitnessCalculationService/Dockerfile
+          - service_name: progress-service
+            dockerfile: ProgressTrackingService/Dockerfile
+          - service_name: smart-coach-service
+            dockerfile: SmartCoachService/Dockerfile
 
     steps:
-    # 1. Checkout the code from the repository
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. Setup .NET 8 SDK
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
-
-    # 3. Restore Dependencies
-    - name: Restore dependencies
-      run: dotnet restore ./WorkoutService/WorkoutService.csproj
-
-    # 4. Build (Compilation)
-    # This step ensures the code is free of syntax errors before building the image
-    - name: Build
-      run: dotnet build --no-restore --configuration Release ./WorkoutService/WorkoutService.csproj
-
-    # 5. Set up Docker Buildx
-    # This action sets up Build Kit for Docker to enable efficient building and caching
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    # 6. Log in to Docker Hub
-    # Uses the secrets: DOCKER_USERNAME (amr0101) and DOCKER_PASSWORD (the token)
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    # 7. Build and Push (The final step)
-    # This replaces the local-only build step and pushes the image to your repository
-    - name: Build and push Docker image
+    - name: Build and push image
       uses: docker/build-push-action@v5
       with:
-    # Adjust the path to the Dockerfile dynamically based on the matrix service
-        file: ./${{ matrix.service }}/Dockerfile
+        context: .
+        file: ${{ matrix.dockerfile }}
         push: true
         tags: |
-          ${{ secrets.DOCKER_USERNAME }}/workout-service:latest
-          ${{ secrets.DOCKER_USERNAME }}/workout-service:${{ github.sha }}
+          ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service_name }}:latest
+          ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service_name }}:${{ github.sha }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
