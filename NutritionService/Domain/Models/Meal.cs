@@ -13,8 +13,8 @@ namespace NutritionService.Domain.Models
         public bool IsPremium { get; set; } = false;
 
         #region Relationships
-        public int MealPlanId { get; set; }
-        public MealPlan MealPlan { get; set; }
+        public int? MealPlanId { get; set; }
+        public MealPlan? MealPlan { get; set; }
 
         public NutritionFact NutritionFacts { get; set; }
 

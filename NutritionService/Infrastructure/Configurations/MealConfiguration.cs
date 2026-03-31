@@ -34,7 +34,8 @@ namespace NutritionService.Infrastructure.Configurations
             builder.HasOne(m => m.MealPlan)
                    .WithMany(mp => mp.Meals)
                    .HasForeignKey(m => m.MealPlanId)
-                   .OnDelete(DeleteBehavior.Cascade);
+                   .OnDelete(DeleteBehavior.SetNull);
+
 
             builder.HasOne(m => m.NutritionFacts)
                    .WithOne(nf => nf.Meal)
